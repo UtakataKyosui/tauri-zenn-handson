@@ -1,0 +1,10 @@
+# RUSTSEC-2024-0429: glib 0.18.5 の VariantStrIter に unsound な Iterator 実装がある。
+# glib はこのリポジトリが直接依存しているのではなく、tauri の Linux 向け GTK/WebKit
+# バックエンド（gtk / webkit2gtk / soup3 など）が transitively 依存しているもの。
+# `cargo tree --target x86_64-unknown-linux-gnu -i glib@0.18.5` で確認できる。
+# tauri 側が上流の glib を更新するまで解消できないため、上流の更新を待つ間は無視する。
+# 解消条件: Cargo.lock の glib が 0.18.5 より新しくなったら、このエントリを外して
+# `cargo audit` が通ることを確認する。
+
+[advisories]
+ignore = ["RUSTSEC-2024-0429"]

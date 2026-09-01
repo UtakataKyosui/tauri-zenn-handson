@@ -1,0 +1,37 @@
+# QA-11 / QA-19: Git hooks。コミット前の format/lint、push 前の型チェックと高速テスト。
+# 無効化手順は docs/automation.md §4 を参照（LEFTHOOK=0 または --no-verify）。
+pre-commit:
+  parallel: true
+  commands:
+    biome-format:
+      glob: "*.{ts,tsx,js,jsx,json,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    rustfmt:
+      glob: "*.rs"
+      run: cargo fmt -- --check {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    frontend-test:
+      run: pnpm exec vitest run
+    rust-core-test:
+      # crates/core の変更がある場合のみ実行し、待ち時間を抑える（R-15）。
+      # @{push} は新規ブランチの初回 push 時に upstream 未設定で解決できず
+      # exit 128 になるため、常に存在する origin/main を差分の基準にする。
+      files: git diff --name-only origin/main...HEAD
+      glob: "crates/core/**/*.rs"
+      run: cargo test -p app-core
+    rust-tauri-clippy:
+      files: git diff --name-only origin/main...HEAD
+      glob: "src-tauri/**/*.rs"
+      run: cargo clippy -p tauri-app-template --all-targets -- -D warnings
+
+commit-msg:
+  commands:
+    commitlint:
+      # QA-12: Conventional Commits の強制
+      run: pnpm exec commitlint --edit {1}

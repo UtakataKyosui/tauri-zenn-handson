@@ -1,0 +1,25 @@
+[package]
+# NOTE: パッケージ名は "core" にできない。extern prelude 上で標準ライブラリの
+# `core` クレートと衝突し、`#[tokio::test]` 等のマクロ展開が壊れるため（ディレクトリは
+# requirements.md §5 通り crates/core のまま、パッケージ名のみ app-core とする）。
+name = "app-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# tauri に依存しない層。§9.3 の設計制約により、ここへの tauri 依存の追加は禁止する
+# （レビュー観点 §2「ロジックがコマンド関数に直接書かれていないか」の裏返し）。
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+sqlx.workspace = true
+# RS-05: フロントの型付きクライアント生成（tauri-specta）のため、エラー型に
+# specta::Type を付与する。specta 自体は tauri に依存しない純粋な型反映ライブラリであり、
+# 「crates/core は tauri に依存しない」という制約（docs/architecture.md §1）には抵触しない。
+specta.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -1,0 +1,59 @@
+{
+  "nav": { "home": "Home", "settings": "Settings", "demo": "Demo" },
+  "errorBoundary": {
+    "message": "An unexpected error occurred: {{message}}",
+    "retry": "Retry"
+  },
+  "home": {
+    "title": "Tauri App Template",
+    "nameInput": "Name",
+    "greet": "Greet",
+    "loading": "Sending..."
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "themes": { "light": "Light", "dark": "Dark", "system": "Follow OS" },
+    "language": "Language"
+  },
+  "demo": {
+    "title": "Feature demo",
+    "file": {
+      "title": "File picker / read",
+      "open": "Open a file",
+      "hint": "Text files show their content; image files show a preview.",
+      "imageAlt": "Preview of the selected image"
+    },
+    "notification": {
+      "title": "Native notification",
+      "send": "Send notification",
+      "body": "This is a test notification",
+      "denied": "Notification permission was not granted",
+      "permissionGranted": "Permission: granted",
+      "permissionNotGranted": "Permission: not granted",
+      "permissionChecking": "Checking permission",
+      "devNote": "When launched with pnpm tauri dev, macOS Notification Center discards notifications from processes without a bundle ID, so notifications may not appear. Verify with a build from pnpm tauri build instead."
+    },
+    "openLink": {
+      "title": "External link",
+      "open": "Open in browser",
+      "openWithSafari": "Open with Safari",
+      "notice": "Opens in your OS default browser. If nothing happens, check your default browser's settings, or try the Open with Safari button."
+    },
+    "longTask": { "title": "Async task with progress", "start": "Start", "cancel": "Cancel" },
+    "notes": {
+      "title": "Notes (SQLite persistence)",
+      "placeholder": "Title",
+      "add": "Add",
+      "delete": "Delete"
+    },
+    "updater": {
+      "title": "Auto update",
+      "check": "Check for updates",
+      "install": "Install v{{version}}",
+      "checking": "Checking...",
+      "upToDate": "You're up to date",
+      "failed": "Check failed: {{message}}"
+    }
+  }
+}

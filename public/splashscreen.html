@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  FE-06: 起動時スプラッシュ。React バンドルの読み込み・初期化を待つ間に表示する
+  独立した静的ページ（tauri.conf.json の "splashscreen" window）。
+  メインウィンドウは初期状態で非表示にしておき、フロントの初期化完了後に
+  `close_splashscreen` コマンドがこのウィンドウを閉じてメインウィンドウを表示する。
+-->
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(226, 232, 240, 0.25);
+        border-top-color: #e2e8f0;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="spinner" role="status" aria-label="Loading"></div>
+  </body>
+</html>

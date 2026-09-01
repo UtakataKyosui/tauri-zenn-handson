@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "モバイル専用のプラットフォーム機能。platforms で iOS/Android に限定する（生体認証などは docs/recipes/p2-app-features.md に従い必要になった時点で追加する）。",
+  "platforms": ["iOS", "android"],
+  "windows": ["main"],
+  "permissions": [
+    "dialog:default",
+    "fs:default",
+    "notification:default",
+    "opener:default",
+    "os:default"
+  ]
+}

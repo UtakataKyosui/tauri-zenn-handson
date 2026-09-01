@@ -1,0 +1,59 @@
+{
+  "nav": { "home": "ホーム", "settings": "設定", "demo": "デモ" },
+  "errorBoundary": {
+    "message": "予期しないエラーが発生しました: {{message}}",
+    "retry": "再試行"
+  },
+  "home": {
+    "title": "Tauri App Template",
+    "nameInput": "名前",
+    "greet": "挨拶する",
+    "loading": "送信中..."
+  },
+  "settings": {
+    "title": "設定",
+    "theme": "テーマ",
+    "themes": { "light": "ライト", "dark": "ダーク", "system": "OS に合わせる" },
+    "language": "言語"
+  },
+  "demo": {
+    "title": "機能デモ",
+    "file": {
+      "title": "ファイル選択 / 読み込み",
+      "open": "ファイルを開く",
+      "hint": "テキストファイルは内容を、画像ファイルはプレビューを表示します。",
+      "imageAlt": "選択した画像のプレビュー"
+    },
+    "notification": {
+      "title": "ネイティブ通知",
+      "send": "通知を送信",
+      "body": "テスト通知です",
+      "denied": "通知の権限が許可されていません",
+      "permissionGranted": "権限: 許可済み",
+      "permissionNotGranted": "権限: 未許可",
+      "permissionChecking": "権限を確認中",
+      "devNote": "pnpm tauri dev で起動した場合、macOS の通知センターがバンドルIDを持たないプロセスからの通知を破棄するため、通知が表示されないことがあります。動作確認は pnpm tauri build で生成したアプリから行ってください。"
+    },
+    "openLink": {
+      "title": "外部リンク",
+      "open": "ブラウザで開く",
+      "openWithSafari": "Safari で開く",
+      "notice": "OS の既定ブラウザで開きます。開かない場合は既定ブラウザ側の設定を確認するか、Safari で開くボタンをお試しください。"
+    },
+    "longTask": { "title": "進捗付き非同期処理", "start": "開始", "cancel": "キャンセル" },
+    "notes": {
+      "title": "メモ（SQLite 永続化）",
+      "placeholder": "タイトル",
+      "add": "追加",
+      "delete": "削除"
+    },
+    "updater": {
+      "title": "自動アップデート",
+      "check": "アップデートを確認",
+      "install": "v{{version}} をインストール",
+      "checking": "確認中...",
+      "upToDate": "最新版です",
+      "failed": "確認に失敗しました: {{message}}"
+    }
+  }
+}

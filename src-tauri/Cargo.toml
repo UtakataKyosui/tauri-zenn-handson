@@ -1,0 +1,54 @@
+[package]
+name = "tauri-app-template"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version = "1.94"
+# bin が gen-bindings と 2 つあるため、`cargo run` の既定を明示する（tauri dev が使う）。
+default-run = "tauri-app-template"
+
+# RS-01: モバイル対応のため lib target を用意し、main.rs と mobile 双方から
+# `tauri_app_template_lib::run()` を呼び出す。
+[lib]
+name = "tauri_app_template_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+app-core = { path = "../crates/core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-os = "2"
+tauri-plugin-log = "2"
+tauri-plugin-store = "2"
+tauri-plugin-deep-link = "2"
+log = "0.4"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio-util = "0.7"
+specta = { version = "2.0.0-rc.20", features = ["derive"] }
+specta-typescript = "0.0.7"
+tauri-specta = { version = "2.0.0-rc.20", features = ["derive", "typescript"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-updater = "2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tauri = { version = "2", features = ["test"] }
+
+[features]
+# CI 等で bindings 再生成専用バイナリのみを軽量にビルドするためのフラグ（GEN-01）。
+custom-protocol = ["tauri/custom-protocol"]

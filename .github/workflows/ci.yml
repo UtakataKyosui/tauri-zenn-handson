@@ -1,0 +1,301 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # RS-09 / リスク R-1: sqlx のコンパイル時 SQL 検証はここでは常にオフラインメタデータ
+  # （crates/core/.sqlx/, コミット済み）を使う。ビルド時に DB を用意する必要はない。
+  SQLX_OFFLINE: true
+
+jobs:
+  # CI-01: lint / typecheck / test (frontend)
+  frontend:
+    name: Frontend (lint / typecheck / test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".node-version"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      # routeTree.gen.ts / keys.gen.ts は生成物のため gitignore 対象（GEN-03）。
+      # bindings.ts は Rust ビルドが要るためコミット済みだが、この2つは軽量なので
+      # 各ジョブで都度生成する（lint/typecheck/build がこれらの型に依存するため）。
+      - name: Generate routes and i18n types
+        run: pnpm generate:routes && pnpm generate:i18n-types
+
+      - name: Lint (Biome)
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # QA-10: カバレッジを計測・可視化するが、閾値による失敗はさせない
+      - name: Test with coverage
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/
+          retention-days: 14
+
+      - name: Build (Vite)
+        run: pnpm build
+
+  # CI-01: rustfmt / clippy / test (crates/core は tauri 非依存なのでここでは
+  # webkit2gtk 等のシステム依存を入れず軽量に検証する)
+  rust-core:
+    name: Rust core (fmt / clippy / test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (crates/core)
+        run: cargo clippy -p app-core --all-targets -- -D warnings
+
+      - name: Test (crates/core)
+        run: cargo test -p app-core
+
+  # GEN-09: スキャフォールドの雛形自体をテストする。生成された core 側のテストが
+  # 意図通り Red（失敗）になることを確認し、コミットはしない。
+  scaffold-smoke-test:
+    name: Scaffold generator smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".node-version"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate a throwaway feature
+        run: pnpm scaffold:feature ci-smoke-test
+
+      - name: New core test must fail until implemented (Red)
+        run: |
+          set -o pipefail
+          if cargo test -p app-core ci_smoke_test 2>&1 | tee /tmp/scaffold-test.log; then
+            echo "::error::scaffolded test unexpectedly passed; the generator should start Red"
+            exit 1
+          fi
+          grep -q "not yet implemented" /tmp/scaffold-test.log
+
+  # CI-02: デスクトップ 3 OS のマトリクスビルド。GEN-01/GEN-02: bindings/routes を
+  # 再生成し差分が無いことも合わせて検証する
+  rust-tauri:
+    name: Tauri app (${{ matrix.platform }})
+    needs: [frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "ubuntu-latest"
+          - platform: "macos-latest"
+          - platform: "windows-latest"
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libayatana-appindicator3-dev \
+            patchelf build-essential
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".node-version"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      # GEN-02: 全生成物について、再生成後の差分を検出する。routeTree.gen.ts /
+      # keys.gen.ts はコミットしない生成物（gitignore 対象）なので、コミットされている
+      # bindings.ts のみを diff で検証する。3 OS で動かすため shell を bash に固定する
+      # （既定シェルが pwsh の Windows で `||`/`exit` が意図通り解釈されないため）。
+      - name: Regenerate bindings and routes, then check for drift
+        shell: bash
+        run: |
+          pnpm generate:bindings
+          pnpm generate:routes
+          pnpm generate:i18n-types
+          if ! git diff --exit-code -- src/lib/bindings.ts; then
+            echo "::error::src/lib/bindings.ts に差分があります。'pnpm generate:bindings' を実行してコミットしてください"
+            exit 1
+          fi
+
+      - name: Clippy (src-tauri, all targets)
+        run: cargo clippy -p tauri-app-template --all-targets -- -D warnings
+
+      # windows-latest だけ、build.rs で Common Controls v6 マニフェストをテストバイナリに
+      # 埋め込む（src-tauri/build.rs 参照）。他 OS では無視される。
+      - name: Test (src-tauri command layer)
+        run: cargo test -p tauri-app-template --lib
+        env:
+          TAURI_APP_TEMPLATE_EMBED_TEST_MANIFEST: "1"
+
+      # `beforeBuildCommand` (tauri.conf.json) が `pnpm build` を実行するため、
+      # ここで個別にフロントを事前ビルドする必要はない（二重ビルド防止）。
+      - name: Tauri build (debug, no bundle signing)
+        run: pnpm tauri build --debug --no-bundle
+        env:
+          CI: true
+
+  # R-6 対策: デスクトップ専用プラグインが増えてもモバイルビルドが壊れないことを
+  # 早期に検出する。実機ビルドではなくクロスコンパイルの成否のみを見る
+  mobile-compile-check:
+    name: Mobile compile check (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libayatana-appindicator3-dev \
+            patchelf build-essential
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".node-version"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate routes and i18n types
+        run: pnpm generate:routes && pnpm generate:i18n-types
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # actions/setup-java の cache: gradle はこの時点でまだ存在しない
+      # src-tauri/gen/android の gradle ファイルをハッシュ対象にできず効果が
+      # 無いため、実行時に検出・保存する setup-gradle を使う。
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+
+      - name: cargo tauri android init
+        run: pnpm tauri android init
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: Android build (debug APK)
+        run: pnpm tauri android build --debug --target aarch64
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+  # QA-10: Rust 側のカバレッジも可視化する（閾値では失敗させない）
+  rust-coverage:
+    name: Rust coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+      - name: Generate coverage (crates/core)
+        run: cargo llvm-cov -p app-core --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: lcov.info
+          retention-days: 14
+
+  # CI-10: 脆弱性スキャン。マージ条件には含めず、可視化のみ（QA-10 と同じ配分方針）。
+  security-audit:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".node-version"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit
+        run: pnpm audit --prod
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - name: cargo audit
+        run: cargo audit

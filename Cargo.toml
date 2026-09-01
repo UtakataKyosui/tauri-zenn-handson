@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT-0"
+repository = "https://github.com/UtakataKyosui/tauri-app-template"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing = "0.1"
+sqlx = { version = "0.9", default-features = false, features = [
+    "sqlite",
+    "runtime-tokio",
+    "macros",
+    "migrate",
+] }
+specta = { version = "2.0.0-rc.20", features = ["derive"] }
+
+[profile.dev]
+# core クレートのビルドを軽く保つ（TDD の回転速度、R-11）
+incremental = true
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true

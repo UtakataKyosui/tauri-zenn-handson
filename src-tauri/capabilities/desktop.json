@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "デスクトップ専用機能（トレイ・メニュー・ウィンドウ状態・単一インスタンス・自動更新）。platforms で macOS/Windows/Linux に限定する。",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main"],
+  "permissions": [
+    "dialog:default",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-read-file",
+    "notification:default",
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*", "app": "Safari" }]
+    },
+    "os:default",
+    "window-state:default",
+    "updater:default"
+  ]
+}

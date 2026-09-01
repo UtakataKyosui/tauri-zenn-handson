@@ -1,0 +1,28 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO notes (title, body) VALUES (?1, ?2) RETURNING id, title, body",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "body",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [false, false, false]
+  },
+  "hash": "a1678df163f0e5672756aa936fcb0eff03e4ec400bcf890f2b0ff4c2bea1ecb9"
+}

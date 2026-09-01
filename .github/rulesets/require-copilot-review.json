@@ -1,0 +1,25 @@
+{
+  "name": "Request Copilot review on PRs",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "automatic_copilot_code_review_enabled": true,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0,
+        "required_review_thread_resolution": false
+      }
+    }
+  ],
+  "_comment": "REV-04: Copilot コードレビューを PR 作成時に自動リクエストする設定。マージ条件には含めない（required_approving_review_count: 0）。GitHub の API/管理画面の制約により、このファイル自体は自動適用されない。リポジトリ管理者が Settings > Rules > Rulesets > New ruleset > Import a ruleset からこの JSON をインポートすること（docs/automation.md 参照）。"
+}

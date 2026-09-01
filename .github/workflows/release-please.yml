@@ -1,0 +1,25 @@
+name: release-please
+
+# CI-08: コミット履歴（Conventional Commits, QA-12 で強制）から CHANGELOG とバージョンを
+# 自動生成する。release-please が作る「リリース PR」をマージすると v* タグが打たれ、
+# release.yml（CI-03〜05）が起動する。
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please-${{ github.ref }}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

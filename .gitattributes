@@ -1,0 +1,10 @@
+# REV-05: 自動生成ファイルを GitHub の diff / レビュー UI（linguist）の対象から除外する。
+# `pnpm-lock.yaml` / `Cargo.lock` はロックファイルとして扱う（linguist-generated と同様に
+# 折りたたみ表示され、言語統計にも含まれない）。
+src/lib/bindings.ts linguist-generated=true
+src/components/ui/** linguist-generated=true
+pnpm-lock.yaml linguist-generated=true -diff
+Cargo.lock linguist-generated=true -diff
+crates/core/.sqlx/** linguist-generated=true -diff
+
+* text=auto eol=lf
