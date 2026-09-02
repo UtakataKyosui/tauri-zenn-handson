@@ -14,10 +14,42 @@
     "list": {
       "title": "Reading log",
       "loading": "Loading...",
-      "error": "Failed to load: {{message}}"
+      "error": "Failed to load: {{message}}",
+      "keywordPlaceholder": "Filter by title or author",
+      "allGenres": "All genres",
+      "createdAt": "Registered on"
     },
-    "detail": { "title": "Book detail", "id": "Book ID: {{bookId}}" },
-    "new": { "title": "New book" }
+    "detail": {
+      "title": "Book detail",
+      "id": "Book ID: {{bookId}}",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting",
+      "deleteConfirm": "This will delete {{title}}. Are you sure?"
+    },
+    "new": { "title": "New book" },
+    "form": {
+      "title": "Title",
+      "titleError": "Please enter a title",
+      "author": "Author",
+      "status": "Status",
+      "genre": "Genre",
+      "note": "Note",
+      "submit": "Save",
+      "submitting": "Saving"
+    },
+    "status": {
+      "unread": "Unread",
+      "reading": "Reading",
+      "finished": "Finished"
+    },
+    "genre": {
+      "novel": "Novel",
+      "non_fiction": "Non-fiction",
+      "business": "Business",
+      "technology": "Technology",
+      "other": "Other"
+    }
   },
   "settings": {
     "title": "Settings",

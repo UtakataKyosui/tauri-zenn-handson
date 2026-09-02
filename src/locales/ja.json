@@ -14,10 +14,42 @@
     "list": {
       "title": "読書ログ",
       "loading": "読み込み中です",
-      "error": "読み込みに失敗しました: {{message}}"
+      "error": "読み込みに失敗しました: {{message}}",
+      "keywordPlaceholder": "題名や著者で絞り込む",
+      "allGenres": "すべてのジャンル",
+      "createdAt": "登録日"
     },
-    "detail": { "title": "本の詳細", "id": "本のID: {{bookId}}" },
-    "new": { "title": "本を登録する" }
+    "detail": {
+      "title": "本の詳細",
+      "id": "本のID: {{bookId}}",
+      "edit": "編集する",
+      "delete": "削除する",
+      "deleting": "削除しています",
+      "deleteConfirm": "{{title}} を削除します。よろしいですか。"
+    },
+    "new": { "title": "本を登録する" },
+    "form": {
+      "title": "題名",
+      "titleError": "題名を入れてください",
+      "author": "著者",
+      "status": "状態",
+      "genre": "ジャンル",
+      "note": "メモ",
+      "submit": "保存する",
+      "submitting": "保存しています"
+    },
+    "status": {
+      "unread": "未読",
+      "reading": "読んでいる",
+      "finished": "読み終わった"
+    },
+    "genre": {
+      "novel": "小説",
+      "non_fiction": "ノンフィクション",
+      "business": "ビジネス",
+      "technology": "技術書",
+      "other": "その他"
+    }
   },
   "settings": {
     "title": "設定",
