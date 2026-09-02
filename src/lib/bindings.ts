@@ -157,8 +157,15 @@ taskProgress: "task-progress"
  * コマンド層の統一エラー型。`app_core::CoreError` をそのまま包み、フロントには
  * serde を通じて型付きで伝わる（RS-04）。コマンド内で `unwrap()` / `expect()` は使わず、
  * 必ずこの型に変換して `Result` として返すこと（レビュー観点 §2）。
+ * 
+ * `Database` / `Migration` / `Path` は `sqlx::Error` / `sqlx::migrate::MigrateError` /
+ * `tauri::Error` をそれぞれ表す（#5）。これら3つは `Serialize` を実装しないため
+ * `#[from]` で直接包めず、メッセージを文字列化した上で保持する。DB 接続自体のエラーは
+ * `app_core::CoreError::Internal` に正規化されるため（`crates/core/src/domain/notes.rs`
+ * 参照）、ここでの `Database` / `Migration` / `Path` は起動時のセットアップや今後の
+ * コマンド実装が `?` でそのまま伝搬できるようにするための受け皿である。
  */
-export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; message: string }
+export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; message: string } | { kind: "Database"; message: string } | { kind: "Migration"; message: string } | { kind: "Path"; message: string }
 /**
  * アプリ全体で共有する統一エラー型（RS-04）。
  * 

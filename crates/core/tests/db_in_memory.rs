@@ -3,6 +3,7 @@
 //! （`crates/core/migrations/`, RS-09）を毎回適用するため、テストは実スキーマに対して動く。
 
 use app_core::db::connect_in_memory;
+use app_core::domain::book::{Book, Genre, ReadingStatus};
 
 #[tokio::test]
 async fn migrations_are_applied_to_a_fresh_in_memory_database() {
@@ -14,6 +15,45 @@ async fn migrations_are_applied_to_a_fresh_in_memory_database() {
         .expect("notes table should exist after migrations run");
 
     assert_eq!(count.0, 0);
+}
+
+#[tokio::test]
+async fn books_table_is_created_by_migrations_with_expected_defaults() {
+    let pool = connect_in_memory().await.expect("failed to connect");
+
+    sqlx::query("INSERT INTO books (title, author) VALUES ('Sample', 'Author')")
+        .execute(&pool)
+        .await
+        .expect("books table should exist after migrations run");
+
+    let row: (String, String) = sqlx::query_as("SELECT status, genre FROM books")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+    assert_eq!(row, ("unread".to_string(), "other".to_string()));
+}
+
+#[tokio::test]
+async fn a_book_row_decodes_into_the_book_domain_type_with_defaults() {
+    let pool = connect_in_memory().await.expect("failed to connect");
+
+    sqlx::query("INSERT INTO books (title, author) VALUES ('Sample', 'Author')")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let book: Book =
+        sqlx::query_as("SELECT id, title, author, status, note, genre, created_at FROM books")
+            .fetch_one(&pool)
+            .await
+            .expect("a books row should decode into Book via sqlx::FromRow");
+
+    assert_eq!(book.title, "Sample");
+    assert_eq!(book.author, "Author");
+    assert_eq!(book.status, ReadingStatus::Unread);
+    assert_eq!(book.note, "");
+    assert_eq!(book.genre, Genre::Other);
 }
 
 #[tokio::test]
