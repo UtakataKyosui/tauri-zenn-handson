@@ -31,7 +31,8 @@
       "edit": "編集する",
       "delete": "削除する",
       "deleting": "削除しています",
-      "deleteConfirm": "{{title}} を削除します。よろしいですか。"
+      "deleteConfirm": "{{title}} を削除します。よろしいですか。",
+      "deleteError": "削除に失敗しました: {{message}}"
     },
     "new": { "title": "本を登録する" },
     "form": {
@@ -42,7 +43,8 @@
       "genre": "ジャンル",
       "note": "メモ",
       "submit": "保存する",
-      "submitting": "保存しています"
+      "submitting": "保存しています",
+      "saveError": "保存に失敗しました: {{message}}"
     },
     "status": {
       "unread": "未読",

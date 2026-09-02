@@ -1,10 +1,15 @@
+import { useToastStore } from "@/stores/toast-store";
 import { buildBook } from "@/test/factories/book";
 import { mockCommand } from "@/test/mocks/tauri";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode, createElement } from "react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { bookListQuery, bookQuery, useCreateBook, useDeleteBook, useUpdateBook } from "./use-books";
+
+beforeEach(() => {
+  useToastStore.setState({ toasts: [] });
+});
 
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient({
@@ -65,6 +70,26 @@ describe("useCreateBook", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(book);
   });
+
+  it("pushes a destructive toast when the command fails", async () => {
+    mockCommand("create_book", () => {
+      throw { kind: "Core", message: { kind: "Internal" } };
+    });
+
+    const { result } = renderHook(() => useCreateBook(), { wrapper });
+    result.current.mutate({
+      title: "New book",
+      author: "Someone",
+      status: "unread",
+      note: "",
+      genre: "other",
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(useToastStore.getState().toasts.some((toast) => toast.variant === "destructive")).toBe(
+      true,
+    );
+  });
 });
 
 describe("useUpdateBook", () => {
@@ -84,6 +109,26 @@ describe("useUpdateBook", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.status).toBe("finished");
   });
+
+  it("pushes a destructive toast when the command fails", async () => {
+    mockCommand("update_book", () => {
+      throw { kind: "Core", message: { kind: "Internal" } };
+    });
+
+    const { result } = renderHook(() => useUpdateBook(2), { wrapper });
+    result.current.mutate({
+      title: "Some book",
+      author: "Someone",
+      status: "unread",
+      note: "",
+      genre: "other",
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(useToastStore.getState().toasts.some((toast) => toast.variant === "destructive")).toBe(
+      true,
+    );
+  });
 });
 
 describe("useDeleteBook", () => {
@@ -94,5 +139,19 @@ describe("useDeleteBook", () => {
     result.current.mutate(1);
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it("pushes a destructive toast when the command fails", async () => {
+    mockCommand("delete_book", () => {
+      throw { kind: "Core", message: { kind: "Internal" } };
+    });
+
+    const { result } = renderHook(() => useDeleteBook(), { wrapper });
+    result.current.mutate(1);
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(useToastStore.getState().toasts.some((toast) => toast.variant === "destructive")).toBe(
+      true,
+    );
   });
 });
