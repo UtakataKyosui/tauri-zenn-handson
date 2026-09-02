@@ -31,6 +31,7 @@ pub fn typed_builder() -> Builder {
             crate::commands::book::update_book,
             crate::commands::book::delete_book,
             crate::commands::book::export_books,
+            crate::commands::isbn::lookup_isbn,
             crate::commands::window::close_splashscreen,
             crate::commands::updater::check_for_update,
             crate::commands::updater::install_update,
@@ -57,6 +58,7 @@ pub fn typed_builder() -> Builder {
             crate::commands::book::update_book,
             crate::commands::book::delete_book,
             crate::commands::book::export_books,
+            crate::commands::isbn::lookup_isbn,
             crate::commands::window::close_splashscreen,
         ])
         .events(collect_events![crate::tasks::TaskProgress])

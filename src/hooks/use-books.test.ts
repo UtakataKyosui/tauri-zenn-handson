@@ -65,6 +65,7 @@ describe("useCreateBook", () => {
       status: "unread",
       note: "",
       genre: "other",
+      isbn: "",
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -83,6 +84,7 @@ describe("useCreateBook", () => {
       status: "unread",
       note: "",
       genre: "other",
+      isbn: "",
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
@@ -104,6 +106,7 @@ describe("useUpdateBook", () => {
       status: "finished",
       note: "",
       genre: book.genre,
+      isbn: book.isbn,
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -122,6 +125,7 @@ describe("useUpdateBook", () => {
       status: "unread",
       note: "",
       genre: "other",
+      isbn: "",
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));

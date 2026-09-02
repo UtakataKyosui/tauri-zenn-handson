@@ -6,6 +6,8 @@
 pub mod db;
 pub mod domain;
 pub mod error;
+pub mod isbn;
 pub mod net;
+pub mod openbd;
 
 pub use error::CoreError;

@@ -13,6 +13,10 @@ pub enum CoreError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    /// #14: 一意制約（例: ISBNの重複）に違反した場合のユーザー向けエラー。
+    #[error("conflict: {0}")]
+    Conflict(String),
+
     #[error("internal error")]
     Internal,
 }

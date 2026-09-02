@@ -19,22 +19,47 @@ import { BookList } from "./index";
 // `@tauri-apps/plugin-notification`（完了通知）、`@tauri-apps/plugin-opener`
 // （保存先を開く）を呼ぶため、`books.$bookId.test.tsx`/`demo.test.tsx` と同じ
 // `vi.hoisted` + `vi.mock` パターンでモックする。
-const { saveMock, isPermissionGranted, requestPermission, sendNotification, revealItemInDir } =
-  vi.hoisted(() => ({
-    saveMock: vi.fn(),
-    isPermissionGranted: vi.fn(),
-    requestPermission: vi.fn(),
-    sendNotification: vi.fn(),
-    revealItemInDir: vi.fn(),
-  }));
+// #14: `isMobile()`（`@tauri-apps/plugin-os` の `platform()`）を呼ぶため、
+// `demo.test.tsx` と同じくモックしないと未定義呼び出しで例外になる。既定値は
+// デスクトップ（"windows"）にし、スキャン系のテストだけモバイルに切り替える。
+const {
+  saveMock,
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+  revealItemInDir,
+  platformMock,
+  confirmMock,
+  scanMock,
+  lookupIsbnMock,
+  vibrateMock,
+} = vi.hoisted(() => ({
+  saveMock: vi.fn(),
+  isPermissionGranted: vi.fn(),
+  requestPermission: vi.fn(),
+  sendNotification: vi.fn(),
+  revealItemInDir: vi.fn(),
+  platformMock: vi.fn().mockReturnValue("windows"),
+  confirmMock: vi.fn(),
+  scanMock: vi.fn(),
+  lookupIsbnMock: vi.fn(),
+  vibrateMock: vi.fn(),
+}));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({ save: saveMock }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ save: saveMock, confirm: confirmMock }));
 vi.mock("@tauri-apps/plugin-notification", () => ({
   isPermissionGranted,
   requestPermission,
   sendNotification,
 }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir }));
+vi.mock("@tauri-apps/plugin-os", () => ({ platform: platformMock }));
+vi.mock("@tauri-apps/plugin-barcode-scanner", () => ({
+  scan: scanMock,
+  Format: { EAN13: "EAN_13" },
+}));
+vi.mock("@tauri-apps/plugin-haptics", () => ({ vibrate: vibrateMock }));
+vi.mock("@/lib/api/isbn", () => ({ lookupByIsbn: lookupIsbnMock }));
 
 // `BookList` は内部で `<Link to="/books/$bookId" />` を使うため、単体でレンダーすると
 // ルータコンテキストが無くエラーになる。テスト専用の最小限のルートツリーを組んで、
@@ -51,8 +76,14 @@ function renderBookList(queryClient: QueryClient) {
     path: "/books/$bookId",
     component: () => null,
   });
+  // #14: スキャン取り消し時のフォールバック先（`/books/new`）を検証するために必要。
+  const bookNewRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/books/new",
+    component: () => <p>{i18n.t("books.new.title")}</p>,
+  });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([indexRoute, bookDetailRoute]),
+    routeTree: rootRoute.addChildren([indexRoute, bookDetailRoute, bookNewRoute]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   return render(
@@ -189,6 +220,105 @@ describe("BookList", () => {
         ).toBe(true);
       });
       expect(sendNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("scan", () => {
+    beforeEach(() => {
+      platformMock.mockReset().mockReturnValue("windows");
+      confirmMock.mockReset();
+      scanMock.mockReset();
+      lookupIsbnMock.mockReset();
+      vibrateMock.mockReset().mockResolvedValue(undefined);
+      isPermissionGranted.mockReset().mockResolvedValue(true);
+      sendNotification.mockReset();
+      useToastStore.setState({ toasts: [] });
+    });
+
+    it("does not show the scan button on desktop", async () => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      mockCommand("list_books", () => [buildBook()]);
+
+      renderBookList(queryClient);
+
+      await screen.findByRole("button", { name: i18n.t("books.list.exportButton") });
+      expect(
+        screen.queryByRole("button", { name: i18n.t("books.list.scanButton") }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("scans, confirms, registers, notifies, and vibrates on a mobile platform", async () => {
+      platformMock.mockReturnValue("android");
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      mockCommands({
+        list_books: () => [buildBook()],
+        create_book: () => buildBook({ id: 9, title: "Readable Code", isbn: "9784873115658" }),
+      });
+      scanMock.mockResolvedValue({ content: "9784873115658", format: "EAN_13", bounds: {} });
+      lookupIsbnMock.mockResolvedValue({ title: "Readable Code", author: "Dustin Boswell" });
+      confirmMock.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      renderBookList(queryClient);
+      await user.click(
+        await screen.findByRole("button", { name: i18n.t("books.list.scanButton") }),
+      );
+
+      await waitFor(() => {
+        expect(confirmMock).toHaveBeenCalledWith(
+          i18n.t("books.list.scanConfirm", { title: "Readable Code", author: "Dustin Boswell" }),
+        );
+      });
+      await waitFor(() => {
+        expect(sendNotification).toHaveBeenCalledWith({
+          title: i18n.t("books.list.scanSuccessTitle"),
+          body: i18n.t("books.list.scanSuccessBody", { title: "Readable Code" }),
+        });
+      });
+      expect(vibrateMock).toHaveBeenCalledWith(200);
+    });
+
+    it("does not register when the confirmation is declined", async () => {
+      platformMock.mockReturnValue("android");
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      let createCalled = false;
+      mockCommands({
+        list_books: () => [buildBook()],
+        create_book: () => {
+          createCalled = true;
+          return buildBook();
+        },
+      });
+      scanMock.mockResolvedValue({ content: "9784873115658", format: "EAN_13", bounds: {} });
+      lookupIsbnMock.mockResolvedValue({ title: "Readable Code", author: "Dustin Boswell" });
+      confirmMock.mockResolvedValue(false);
+      const user = userEvent.setup();
+
+      renderBookList(queryClient);
+      await user.click(
+        await screen.findByRole("button", { name: i18n.t("books.list.scanButton") }),
+      );
+
+      await waitFor(() => expect(confirmMock).toHaveBeenCalled());
+      expect(createCalled).toBe(false);
+    });
+
+    it("falls back to the manual entry screen when the scan is canceled", async () => {
+      platformMock.mockReturnValue("android");
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      mockCommand("list_books", () => [buildBook()]);
+      scanMock.mockRejectedValue(new Error("scan canceled"));
+      const user = userEvent.setup();
+
+      renderBookList(queryClient);
+      await user.click(
+        await screen.findByRole("button", { name: i18n.t("books.list.scanButton") }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(i18n.t("books.new.title"))).toBeInTheDocument();
+      });
+      expect(lookupIsbnMock).not.toHaveBeenCalled();
     });
   });
 });

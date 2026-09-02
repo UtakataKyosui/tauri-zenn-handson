@@ -17,11 +17,14 @@ import { Route as BookDetailFileRoute } from "./books.$bookId";
 
 // #11: `window.confirm` の代わりに `@tauri-apps/plugin-dialog` の `confirm` を使うため、
 // demo.test.tsx と同じ vi.mock + vi.hoisted のパターンでモックする。
-const { confirmMock } = vi.hoisted(() => ({
+const { confirmMock, writeTextMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
+  writeTextMock: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ confirm: confirmMock }));
+// #14: ISBNコピーボタンのテスト用に `@tauri-apps/plugin-clipboard-manager` をモックする。
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({ writeText: writeTextMock }));
 
 // `BookDetail` の `Route.useParams()`/`Route.useNavigate()` はルートIDの文字列一致で
 // 解決されるため、`index.test.tsx` と違い実ファイルルートのコンポーネントをそのまま使う。
@@ -53,6 +56,7 @@ function renderBookDetail(queryClient: QueryClient, bookId: number) {
 describe("BookDetail", () => {
   beforeEach(() => {
     confirmMock.mockReset();
+    writeTextMock.mockReset();
   });
 
   afterEach(() => {
@@ -135,5 +139,35 @@ describe("BookDetail", () => {
 
     expect(deleteCalled).toBe(false);
     expect(screen.getByRole("button", { name: i18n.t("books.detail.delete") })).toBeInTheDocument();
+  });
+
+  it("does not show the isbn copy button when the book has no isbn", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const book = buildBook({ id: 1, title: "Readable Code", isbn: "" });
+    mockCommand("get_book", () => book);
+
+    renderBookDetail(queryClient, 1);
+
+    await screen.findByLabelText(i18n.t("books.form.title"));
+    expect(screen.queryByText(i18n.t("books.detail.copyIsbn"))).not.toBeInTheDocument();
+  });
+
+  it("copies the isbn to the clipboard and shows a confirmation", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const book = buildBook({ id: 1, title: "Readable Code", isbn: "9784873115658" });
+    mockCommand("get_book", () => book);
+    writeTextMock.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    renderBookDetail(queryClient, 1);
+
+    await user.click(await screen.findByRole("button", { name: i18n.t("books.detail.copyIsbn") }));
+
+    expect(writeTextMock).toHaveBeenCalledWith("9784873115658");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: i18n.t("books.detail.isbnCopied") }),
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -11,6 +11,7 @@ export function buildBook(overrides: Partial<Book> = {}): Book {
     status: "unread",
     note: "",
     genre: "other",
+    isbn: "",
     created_at: "2024-01-01T00:00:00Z",
     ...overrides,
   };

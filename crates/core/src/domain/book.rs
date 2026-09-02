@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 use crate::error::{CoreError, CoreResult};
+use crate::isbn::is_valid_isbn13;
 
 /// 本を読み終えているかどうかの状態。文字列ではなく列挙型にすることで、
 /// 打ち間違いをコンパイルで止める。
@@ -39,10 +40,12 @@ pub struct Book {
     pub status: ReadingStatus,
     pub note: String,
     pub genre: Genre,
+    pub isbn: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// 新規登録時にフロントエンドから受け取る入力。
+/// 新規登録時にフロントエンドから受け取る入力。`isbn` は分かっているときだけ入れる項目
+/// なので空文字を許す（#14）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct NewBook {
     pub title: String,
@@ -50,6 +53,30 @@ pub struct NewBook {
     pub status: ReadingStatus,
     pub note: String,
     pub genre: Genre,
+    pub isbn: String,
+}
+
+/// ISBNが空文字でない場合だけ形式を検証する（#14）。空文字は「ISBNが分からない本」を
+/// 表すため許容する。
+fn validate_isbn(isbn: &str) -> CoreResult<()> {
+    if !isbn.is_empty() && !is_valid_isbn13(isbn) {
+        return Err(CoreError::InvalidInput(
+            "ISBNの形式が正しくありません".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// ISBNの一意制約違反を、ユーザー向けの `CoreError::Conflict` に変換する。それ以外の
+/// DBエラーは既存の方針どおり `CoreError::Internal` に正規化する（詳細はログにだけ残す）。
+fn map_write_error(e: sqlx::Error, context: &str) -> CoreError {
+    if let sqlx::Error::Database(db_err) = &e {
+        if db_err.is_unique_violation() {
+            return CoreError::Conflict("同じISBNの本がすでに登録されています".into());
+        }
+    }
+    tracing::error!(error = %e, "failed to {context} book");
+    CoreError::Internal
 }
 
 /// SQL は `sqlx::query_as!` 系マクロで組み立て、コンパイル時に検証する
@@ -60,34 +87,31 @@ pub async fn create(pool: &SqlitePool, input: NewBook) -> CoreResult<Book> {
     if input.title.trim().is_empty() {
         return Err(CoreError::InvalidInput("title must not be empty".into()));
     }
+    validate_isbn(&input.isbn)?;
 
-    let book = sqlx::query_as!(
+    sqlx::query_as!(
         Book,
-        r#"INSERT INTO books (title, author, status, note, genre)
-           VALUES (?1, ?2, ?3, ?4, ?5)
+        r#"INSERT INTO books (title, author, status, note, genre, isbn)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6)
            RETURNING id, title, author, status as "status: ReadingStatus", note,
-                     genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
+                     genre as "genre: Genre", isbn, created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
         input.title,
         input.author,
         input.status,
         input.note,
         input.genre,
+        input.isbn,
     )
     .fetch_one(pool)
     .await
-    .map_err(|e| {
-        tracing::error!(error = %e, "failed to insert book");
-        CoreError::Internal
-    })?;
-
-    Ok(book)
+    .map_err(|e| map_write_error(e, "insert"))
 }
 
 pub async fn list(pool: &SqlitePool) -> CoreResult<Vec<Book>> {
     let books = sqlx::query_as!(
         Book,
         r#"SELECT id, title, author, status as "status: ReadingStatus", note,
-                  genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>"
+                  genre as "genre: Genre", isbn, created_at as "created_at: chrono::DateTime<chrono::Utc>"
            FROM books ORDER BY created_at DESC, id DESC"#,
     )
     .fetch_all(pool)
@@ -104,7 +128,7 @@ pub async fn get(pool: &SqlitePool, id: i64) -> CoreResult<Book> {
     sqlx::query_as!(
         Book,
         r#"SELECT id, title, author, status as "status: ReadingStatus", note,
-                  genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>"
+                  genre as "genre: Genre", isbn, created_at as "created_at: chrono::DateTime<chrono::Utc>"
            FROM books WHERE id = ?1"#,
         id,
     )
@@ -121,26 +145,25 @@ pub async fn update(pool: &SqlitePool, id: i64, input: NewBook) -> CoreResult<Bo
     if input.title.trim().is_empty() {
         return Err(CoreError::InvalidInput("title must not be empty".into()));
     }
+    validate_isbn(&input.isbn)?;
 
     sqlx::query_as!(
         Book,
-        r#"UPDATE books SET title = ?1, author = ?2, status = ?3, note = ?4, genre = ?5
-           WHERE id = ?6
+        r#"UPDATE books SET title = ?1, author = ?2, status = ?3, note = ?4, genre = ?5, isbn = ?6
+           WHERE id = ?7
            RETURNING id, title, author, status as "status: ReadingStatus", note,
-                     genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
+                     genre as "genre: Genre", isbn, created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
         input.title,
         input.author,
         input.status,
         input.note,
         input.genre,
+        input.isbn,
         id,
     )
     .fetch_optional(pool)
     .await
-    .map_err(|e| {
-        tracing::error!(error = %e, "failed to update book");
-        CoreError::Internal
-    })?
+    .map_err(|e| map_write_error(e, "update"))?
     .ok_or_else(|| CoreError::NotFound(format!("book {id}")))
 }
 
@@ -187,14 +210,14 @@ fn csv_field(value: &str) -> String {
 }
 
 /// #12: 全ての本を CSV にして `path` へ書き出す。列は
-/// `title,author,status,note,genre,created_at` の順で固定する。既存の `list` を再利用するため
-/// 新規の SQL クエリは追加していない（`cargo sqlx prepare` の再実行は不要）。
+/// `title,author,status,note,genre,isbn,created_at` の順で固定する。既存の `list` を再利用
+/// するため新規の SQL クエリは追加していない（`cargo sqlx prepare` の再実行は不要）。
 /// ファイル I/O は `src-tauri/src/lib.rs` の起動時セットアップと同じく同期 API を使う
 /// （crates/core はこの用途向けの非同期 fs 依存を追加していないため）。
 pub async fn export_csv(pool: &SqlitePool, path: &std::path::Path) -> CoreResult<u64> {
     let books = list(pool).await?;
 
-    let mut csv = String::from("title,author,status,note,genre,created_at\n");
+    let mut csv = String::from("title,author,status,note,genre,isbn,created_at\n");
     for book in &books {
         csv.push_str(&csv_field(&book.title));
         csv.push(',');
@@ -205,6 +228,8 @@ pub async fn export_csv(pool: &SqlitePool, path: &std::path::Path) -> CoreResult
         csv.push_str(&csv_field(&book.note));
         csv.push(',');
         csv.push_str(&csv_field(book.genre.as_str()));
+        csv.push(',');
+        csv.push_str(&csv_field(&book.isbn));
         csv.push(',');
         csv.push_str(&csv_field(&book.created_at.to_rfc3339()));
         csv.push('\n');
@@ -230,6 +255,7 @@ mod tests {
             status: ReadingStatus::Unread,
             note: String::new(),
             genre: Genre::Other,
+            isbn: String::new(),
         }
     }
 
@@ -253,6 +279,52 @@ mod tests {
         let err = create(&pool, input).await.unwrap_err();
 
         assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn creates_a_book_with_a_valid_isbn() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut input = sample_book();
+        input.isbn = "9784873115658".to_string();
+
+        let created = create(&pool, input).await.unwrap();
+
+        assert_eq!(created.isbn, "9784873115658");
+    }
+
+    #[tokio::test]
+    async fn rejects_an_invalid_isbn_on_create() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut input = sample_book();
+        input.isbn = "1234567890123".to_string();
+
+        let err = create(&pool, input).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_duplicate_isbn_on_create() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut first = sample_book();
+        first.isbn = "9784873115658".to_string();
+        create(&pool, first).await.unwrap();
+        let mut second = sample_book();
+        second.isbn = "9784873115658".to_string();
+
+        let err = create(&pool, second).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::Conflict(_)));
+    }
+
+    #[tokio::test]
+    async fn allows_multiple_books_without_an_isbn() {
+        let pool = connect_in_memory().await.unwrap();
+
+        create(&pool, sample_book()).await.unwrap();
+        create(&pool, sample_book()).await.unwrap();
+
+        assert_eq!(list(&pool).await.unwrap().len(), 2);
     }
 
     #[tokio::test]
@@ -298,6 +370,49 @@ mod tests {
         let err = update(&pool, created.id, input).await.unwrap_err();
 
         assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_an_invalid_isbn_on_update() {
+        let pool = connect_in_memory().await.unwrap();
+        let created = create(&pool, sample_book()).await.unwrap();
+        let mut input = sample_book();
+        input.isbn = "not-an-isbn".to_string();
+
+        let err = update(&pool, created.id, input).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_duplicate_isbn_on_update() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut first = sample_book();
+        first.isbn = "9784873115658".to_string();
+        create(&pool, first).await.unwrap();
+        let second = create(&pool, sample_book()).await.unwrap();
+        let mut update_input = sample_book();
+        update_input.isbn = "9784873115658".to_string();
+
+        let err = update(&pool, second.id, update_input).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::Conflict(_)));
+    }
+
+    #[tokio::test]
+    async fn keeps_its_own_isbn_unchanged_on_update() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut input = sample_book();
+        input.isbn = "9784873115658".to_string();
+        let created = create(&pool, input).await.unwrap();
+        let mut update_input = sample_book();
+        update_input.isbn = "9784873115658".to_string();
+        update_input.title = "Updated title".to_string();
+
+        let updated = update(&pool, created.id, update_input).await.unwrap();
+
+        assert_eq!(updated.isbn, "9784873115658");
+        assert_eq!(updated.title, "Updated title");
     }
 
     #[tokio::test]
@@ -355,8 +470,7 @@ mod tests {
 
     #[test]
     fn deserializes_new_book_from_snake_case_json() {
-        let json =
-            r#"{"title":"t","author":"a","status":"reading","note":"","genre":"technology"}"#;
+        let json = r#"{"title":"t","author":"a","status":"reading","note":"","genre":"technology","isbn":""}"#;
 
         let new_book: NewBook = serde_json::from_str(json).unwrap();
 
@@ -376,15 +490,19 @@ mod tests {
     #[tokio::test]
     async fn exports_books_as_csv_with_header_and_row_count() {
         let pool = connect_in_memory().await.unwrap();
-        create(&pool, sample_book()).await.unwrap();
+        let mut input = sample_book();
+        input.isbn = "9784873115658".to_string();
+        create(&pool, input).await.unwrap();
         let path = temp_csv_path("basic");
 
         let count = export_csv(&pool, &path).await.unwrap();
 
         assert_eq!(count, 1);
         let content = std::fs::read_to_string(&path).unwrap();
-        assert!(content.starts_with("title,author,status,note,genre,created_at\n"));
-        assert!(content.contains("\"Sample book\",\"Sample author\",\"unread\",\"\",\"other\","));
+        assert!(content.starts_with("title,author,status,note,genre,isbn,created_at\n"));
+        assert!(content.contains(
+            "\"Sample book\",\"Sample author\",\"unread\",\"\",\"other\",\"9784873115658\","
+        ));
         std::fs::remove_file(&path).unwrap();
     }
 
@@ -397,7 +515,7 @@ mod tests {
 
         assert_eq!(count, 0);
         let content = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(content, "title,author,status,note,genre,created_at\n");
+        assert_eq!(content, "title,author,status,note,genre,isbn,created_at\n");
         std::fs::remove_file(&path).unwrap();
     }
 

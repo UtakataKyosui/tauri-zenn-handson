@@ -43,17 +43,19 @@ async fn a_book_row_decodes_into_the_book_domain_type_with_defaults() {
         .await
         .unwrap();
 
-    let book: Book =
-        sqlx::query_as("SELECT id, title, author, status, note, genre, created_at FROM books")
-            .fetch_one(&pool)
-            .await
-            .expect("a books row should decode into Book via sqlx::FromRow");
+    let book: Book = sqlx::query_as(
+        "SELECT id, title, author, status, note, genre, isbn, created_at FROM books",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("a books row should decode into Book via sqlx::FromRow");
 
     assert_eq!(book.title, "Sample");
     assert_eq!(book.author, "Author");
     assert_eq!(book.status, ReadingStatus::Unread);
     assert_eq!(book.note, "");
     assert_eq!(book.genre, Genre::Other);
+    assert_eq!(book.isbn, "");
 }
 
 #[tokio::test]

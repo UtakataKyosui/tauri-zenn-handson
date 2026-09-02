@@ -4,6 +4,7 @@
 pub mod book;
 pub mod credentials;
 pub mod greeting;
+pub mod isbn;
 pub mod long_task;
 pub mod notes;
 #[cfg(desktop)]
@@ -13,6 +14,7 @@ pub mod window;
 pub use book::{create_book, delete_book, get_book, list_books, update_book};
 pub use credentials::{delete_credential, has_credential, save_credential};
 pub use greeting::greet;
+pub use isbn::lookup_isbn;
 pub use long_task::{cancel_long_task, start_long_task};
 pub use notes::{create_note, delete_note, list_notes};
 #[cfg(desktop)]

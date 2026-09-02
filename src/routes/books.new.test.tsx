@@ -62,6 +62,19 @@ describe("BookNew", () => {
     });
   });
 
+  it("shows a validation error when the isbn has an invalid format", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    renderBookNew(queryClient);
+
+    const isbnInput = await screen.findByLabelText(i18n.t("books.form.isbn"));
+    await user.type(isbnInput, "1234567890123");
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(i18n.t("books.form.isbnError"));
+    });
+  });
+
   it("creates a book and navigates to its detail page on submit", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const user = userEvent.setup();
@@ -72,6 +85,7 @@ describe("BookNew", () => {
       status: "unread",
       note: "",
       genre: "other",
+      isbn: "",
       created_at: "2024-01-01T00:00:00Z",
     }));
     renderBookNew(queryClient);

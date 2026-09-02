@@ -42,6 +42,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        // #14: ISBNや書誌情報を他アプリへコピーする用途。デスクトップ・モバイル両対応。
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState::default())
         .invoke_handler(builder.invoke_handler());
 
@@ -54,6 +56,16 @@ pub fn run() {
             }))
             .plugin(tauri_plugin_window_state::Builder::default().build())
             .plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    #[cfg(mobile)]
+    {
+        // #14: バーコードでISBNを読み取る（barcode-scanner）、登録完了を振動で伝える
+        // （haptics）。どちらもOS側の機能に依存するためモバイル専用（Cargo.toml の
+        // target cfg 参照）。
+        app_builder = app_builder
+            .plugin(tauri_plugin_barcode_scanner::init())
+            .plugin(tauri_plugin_haptics::init());
     }
 
     app_builder
