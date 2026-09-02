@@ -1,0 +1,101 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, title, author, status as \"status: ReadingStatus\", note,\n                  genre as \"genre: Genre\", isbn, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n           FROM books WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "name": "author",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "author"
+          }
+        }
+      },
+      {
+        "name": "status: ReadingStatus",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "note",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "name": "genre: Genre",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "genre"
+          }
+        }
+      },
+      {
+        "name": "isbn",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "isbn"
+          }
+        }
+      },
+      {
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false, false, false, false, false, false, false]
+  },
+  "hash": "3131641d96bc086847e57353ac25fcdf6ab73c15fada7bda74c288c6ebf99e9d"
+}

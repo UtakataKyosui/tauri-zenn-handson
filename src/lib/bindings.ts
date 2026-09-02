@@ -158,6 +158,21 @@ async exportBooks(path: string) : Promise<Result<number, AppError>> {
 }
 },
 /**
+ * #14: スキャンまたは手入力したISBNから書名・著者を引く。実際のHTTP通信（タイムアウト・
+ * リトライ）は `http_client` に委ね、レスポンスの解釈は `app_core::openbd`（純粋関数、
+ * ネットワークなしでテスト済み）に委ねる。該当するISBNが見つからない場合も
+ * エラーにはせず、`title`/`author` が空の `BookInfo` を返す（呼び出し側で手入力に
+ * フォールバックできるようにするため）。
+ */
+async lookupIsbn(isbn: string) : Promise<Result<BookInfo, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("lookup_isbn", { isbn }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * FE-06: フロントの初期化が完了したらメイン画面から呼び出す。スプラッシュを閉じて
  * メインウィンドウを表示する。デスクトップ・モバイル双方の window 構成で動作する。
  */
@@ -222,26 +237,41 @@ taskProgress: "task-progress"
  * 参照）、ここでの `Database` / `Migration` / `Path` は起動時のセットアップや今後の
  * コマンド実装が `?` でそのまま伝搬できるようにするための受け皿である。
  */
-export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; message: string } | { kind: "Database"; message: string } | { kind: "Migration"; message: string } | { kind: "Path"; message: string }
+export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; message: string } | { kind: "Database"; message: string } | { kind: "Migration"; message: string } | { kind: "Path"; message: string } | 
+/**
+ * #14: `lookup_isbn` が openBD を呼ぶ際のHTTP通信の失敗（タイムアウト・DNS解決失敗等）。
+ */
+{ kind: "Network"; message: string }
 /**
  * データベースから読み出した本のレコード。
  */
-export type Book = { id: number; title: string; author: string; status: ReadingStatus; note: string; genre: Genre; created_at: string }
+export type Book = { id: number; title: string; author: string; status: ReadingStatus; note: string; genre: Genre; isbn: string; created_at: string }
+/**
+ * 書誌情報APIから引いた書名と著者。該当するISBNが見つからない場合は両方とも
+ * 空文字のまま返し、利用者が手で埋められるようにする（スキャンは入力の手間を
+ * 減らす手段であって、登録できる条件を狭める手段にしてはいけないため）。
+ */
+export type BookInfo = { title: string; author: string }
 /**
  * アプリ全体で共有する統一エラー型（RS-04）。
  * 
  * `crates/core` の全ての公開関数はこの型（または個別の `thiserror` 型を経由してこの型へ
  * 変換されるもの）を返す。`src-tauri` のコマンド層はこれを `serde` でフロントへシリアライズする。
  */
-export type CoreError = { kind: "InvalidInput"; message: string } | { kind: "NotFound"; message: string } | { kind: "Internal" }
+export type CoreError = { kind: "InvalidInput"; message: string } | { kind: "NotFound"; message: string } | 
+/**
+ * #14: 一意制約（例: ISBNの重複）に違反した場合のユーザー向けエラー。
+ */
+{ kind: "Conflict"; message: string } | { kind: "Internal" }
 /**
  * 本のジャンル。
  */
 export type Genre = "novel" | "non_fiction" | "business" | "technology" | "other"
 /**
- * 新規登録時にフロントエンドから受け取る入力。
+ * 新規登録時にフロントエンドから受け取る入力。`isbn` は分かっているときだけ入れる項目
+ * なので空文字を許す（#14）。
  */
-export type NewBook = { title: string; author: string; status: ReadingStatus; note: string; genre: Genre }
+export type NewBook = { title: string; author: string; status: ReadingStatus; note: string; genre: Genre; isbn: string }
 export type Note = { id: number; title: string; body: string }
 /**
  * 本を読み終えているかどうかの状態。文字列ではなく列挙型にすることで、

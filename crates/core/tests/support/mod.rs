@@ -45,6 +45,7 @@ pub struct BookFixture {
     pub status: ReadingStatus,
     pub note: String,
     pub genre: Genre,
+    pub isbn: String,
 }
 
 impl Default for BookFixture {
@@ -55,6 +56,7 @@ impl Default for BookFixture {
             status: ReadingStatus::Unread,
             note: String::new(),
             genre: Genre::Other,
+            isbn: String::new(),
         }
     }
 }
@@ -70,6 +72,11 @@ impl BookFixture {
         self
     }
 
+    pub fn with_isbn(mut self, isbn: impl Into<String>) -> Self {
+        self.isbn = isbn.into();
+        self
+    }
+
     pub fn into_new_book(self) -> NewBook {
         NewBook {
             title: self.title,
@@ -77,6 +84,7 @@ impl BookFixture {
             status: self.status,
             note: self.note,
             genre: self.genre,
+            isbn: self.isbn,
         }
     }
 }

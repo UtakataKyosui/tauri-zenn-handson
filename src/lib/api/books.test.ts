@@ -28,6 +28,7 @@ describe("books api", () => {
       status: "unread",
       note: "",
       genre: "technology",
+      isbn: "",
     });
 
     expect(book.title).toBe("Refactoring");
@@ -45,6 +46,7 @@ describe("books api", () => {
       status: "finished",
       note: "読了",
       genre: "technology",
+      isbn: "",
     });
 
     expect(book.id).toBe(4);

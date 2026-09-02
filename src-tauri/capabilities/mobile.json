@@ -11,6 +11,9 @@
     "fs:default",
     "notification:default",
     "opener:default",
-    "os:default"
+    "os:default",
+    "clipboard-manager:allow-write-text",
+    "barcode-scanner:allow-scan",
+    "haptics:default"
   ]
 }

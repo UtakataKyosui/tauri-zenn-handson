@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { Genre, NewBook, ReadingStatus } from "@/lib/bindings";
+import { isValidIsbn13 } from "@/lib/isbn";
 import { useForm } from "@tanstack/react-form";
 import { useTranslation } from "react-i18next";
 
@@ -146,6 +147,34 @@ export function BookForm({
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
             />
+          </div>
+        )}
+      </form.Field>
+
+      {/* #14: ISBNは分かっているときだけ入れる項目のため空欄を許し、値があるときだけ
+          ISBN-13の形式を検証する。保存してよいかどうかの最終判断は
+          `crates/core` 側（`domain/book.rs` の `create`/`update`）が行う。 */}
+      <form.Field
+        name="isbn"
+        validators={{
+          onChange: ({ value }) =>
+            value.length > 0 && !isValidIsbn13(value) ? t("books.form.isbnError") : undefined,
+        }}
+      >
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={field.name}>{t("books.form.isbn")}</Label>
+            <Input
+              id={field.name}
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+            {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+              <span role="alert" className="text-sm text-destructive">
+                {field.state.meta.errors[0]}
+              </span>
+            )}
           </div>
         )}
       </form.Field>

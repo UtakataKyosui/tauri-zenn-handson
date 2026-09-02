@@ -27,6 +27,10 @@ pub enum AppError {
 
     #[error("path resolution error: {0}")]
     Path(String),
+
+    /// #14: `lookup_isbn` が openBD を呼ぶ際のHTTP通信の失敗（タイムアウト・DNS解決失敗等）。
+    #[error("network error: {0}")]
+    Network(String),
 }
 
 impl From<sqlx::Error> for AppError {
@@ -44,6 +48,12 @@ impl From<sqlx::migrate::MigrateError> for AppError {
 impl From<tauri::Error> for AppError {
     fn from(err: tauri::Error) -> Self {
         Self::Path(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Network(err.to_string())
     }
 }
 

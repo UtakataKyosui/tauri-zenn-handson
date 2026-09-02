@@ -14,6 +14,7 @@ const defaultValues: NewBook = {
   status: "unread",
   note: "",
   genre: "other",
+  isbn: "",
 };
 
 // #10: 登録フォーム本体。保存に成功したら詳細画面へ遷移する。

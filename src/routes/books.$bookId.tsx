@@ -4,6 +4,7 @@ import { bookQuery, useDeleteBook, useUpdateBook } from "@/hooks/use-books";
 import type { NewBook } from "@/lib/bindings";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,6 +26,7 @@ function BookDetail() {
   const updateBook = useUpdateBook(id);
   const deleteBook = useDeleteBook();
   const [confirming, setConfirming] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const defaultValues: NewBook = {
     title: book.title,
@@ -32,6 +34,7 @@ function BookDetail() {
     status: book.status,
     note: book.note,
     genre: book.genre,
+    isbn: book.isbn,
   };
 
   // #11: 削除の確認は Tauri のダイアログプラグインを使う。`confirm()` は内部で
@@ -49,9 +52,25 @@ function BookDetail() {
     }
   };
 
+  // #14: コピーできたことが分かるよう、ボタンの表示を一瞬だけ差し替える。
+  // 合図が無いと、コピーが成功したかどうか利用者に伝わらないため。
+  const handleCopyIsbn = async () => {
+    await writeText(book.isbn);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t("books.detail.title")}</h1>
+      {book.isbn.length > 0 && (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-muted-foreground">{book.isbn}</span>
+          <Button type="button" variant="outline" size="sm" onClick={handleCopyIsbn}>
+            {copied ? t("books.detail.isbnCopied") : t("books.detail.copyIsbn")}
+          </Button>
+        </div>
+      )}
       <BookForm
         defaultValues={defaultValues}
         submitLabel={t("books.detail.edit")}

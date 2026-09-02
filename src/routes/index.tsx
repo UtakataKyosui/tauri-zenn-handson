@@ -15,10 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { bookListQuery } from "@/hooks/use-books";
+import { bookListQuery, useCreateBook } from "@/hooks/use-books";
+import { scanIsbn } from "@/lib/api/barcode";
 import { exportBooks } from "@/lib/api/books";
+import { lookupByIsbn } from "@/lib/api/isbn";
 import type { Book } from "@/lib/bindings";
+import { notifyRegistrationHaptic } from "@/lib/haptics";
 import { notify } from "@/lib/notify";
+import { isMobile } from "@/lib/platform";
 import { useToastStore } from "@/stores/toast-store";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
@@ -32,7 +36,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { save } from "@tauri-apps/plugin-dialog";
+import { confirm, save } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -61,7 +65,9 @@ export function BookList() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [exporting, setExporting] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const pushToast = useToastStore((s) => s.push);
+  const createBook = useCreateBook();
 
   const setKeyword = (value: string) => {
     navigate({ to: ".", search: { keyword: value || undefined }, replace: true });
@@ -91,6 +97,46 @@ export function BookList() {
       });
     } finally {
       setExporting(false);
+    }
+  };
+
+  // #14: スキャン → ISBN取得 → 書誌情報API → 確認ダイアログ → 登録 → 通知・ハプティクス、
+  // の流れ。スキャンの取り消しやカメラ権限拒否時は例外が起きるので、ISBN手入力の画面
+  // （/books/new）へフォールバックし、アプリが落ちないようにする。書誌情報の取得や
+  // 登録自体の失敗は `useCreateBook` の `onError` が既存のトースト通知で伝える。
+  const handleScan = async () => {
+    setScanning(true);
+    let isbn: string;
+    let info: { title: string; author: string };
+    try {
+      isbn = await scanIsbn();
+      info = await lookupByIsbn(isbn);
+    } catch {
+      setScanning(false);
+      navigate({ to: "/books/new" });
+      return;
+    }
+    try {
+      const confirmed = await confirm(
+        t("books.list.scanConfirm", { title: info.title || isbn, author: info.author }),
+      );
+      if (!confirmed) return;
+
+      const book = await createBook.mutateAsync({
+        title: info.title,
+        author: info.author,
+        status: "unread",
+        note: "",
+        genre: "other",
+        isbn,
+      });
+      await notify(
+        t("books.list.scanSuccessTitle"),
+        t("books.list.scanSuccessBody", { title: book.title }),
+      ).catch(() => {});
+      await notifyRegistrationHaptic();
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -165,9 +211,18 @@ export function BookList() {
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">{t("books.list.title")}</h1>
-        <Button type="button" variant="outline" onClick={handleExport} disabled={exporting}>
-          {exporting ? t("books.list.exporting") : t("books.list.exportButton")}
-        </Button>
+        <div className="flex gap-2">
+          {/* #14: バーコードスキャンはカメラを使うモバイル専用機能のため、
+              `isDesktop()` と対になる `isMobile()` で絞る（`demo.tsx` と同じ判定パターン）。 */}
+          {isMobile() && (
+            <Button type="button" variant="outline" onClick={handleScan} disabled={scanning}>
+              {scanning ? t("books.list.scanning") : t("books.list.scanButton")}
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={handleExport} disabled={exporting}>
+            {exporting ? t("books.list.exporting") : t("books.list.exportButton")}
+          </Button>
+        </div>
       </div>
       <Input
         value={keyword}

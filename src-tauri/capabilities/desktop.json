@@ -19,6 +19,7 @@
     },
     "os:default",
     "window-state:default",
-    "updater:default"
+    "updater:default",
+    "clipboard-manager:allow-write-text"
   ]
 }

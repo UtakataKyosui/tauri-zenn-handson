@@ -23,7 +23,12 @@
       "exportError": "Failed to export: {{message}}",
       "exportSuccessTitle": "Export complete",
       "exportSuccessBody": "Exported {{count}} book(s) to CSV.",
-      "csvFilterName": "CSV"
+      "csvFilterName": "CSV",
+      "scanButton": "Scan to register",
+      "scanning": "Scanning",
+      "scanConfirm": "Register {{title}} / {{author}}?",
+      "scanSuccessTitle": "Registered",
+      "scanSuccessBody": "Added {{title}}."
     },
     "detail": {
       "title": "Book detail",
@@ -32,7 +37,9 @@
       "delete": "Delete",
       "deleting": "Deleting",
       "deleteConfirm": "This will delete {{title}}. Are you sure?",
-      "deleteError": "Failed to delete: {{message}}"
+      "deleteError": "Failed to delete: {{message}}",
+      "copyIsbn": "Copy ISBN",
+      "isbnCopied": "Copied"
     },
     "new": { "title": "New book" },
     "form": {
@@ -42,6 +49,8 @@
       "status": "Status",
       "genre": "Genre",
       "note": "Note",
+      "isbn": "ISBN",
+      "isbnError": "The ISBN format is invalid",
       "submit": "Save",
       "submitting": "Saving",
       "saveError": "Failed to save: {{message}}"

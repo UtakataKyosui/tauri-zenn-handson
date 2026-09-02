@@ -32,6 +32,9 @@ tauri-plugin-os = "2"
 tauri-plugin-log = "2"
 tauri-plugin-store = "2"
 tauri-plugin-deep-link = "2"
+# #14: デスクトップ・モバイルどちらでも動く（読書ログのISBNや書誌情報を他アプリへ
+# 貼り付ける用途）。
+tauri-plugin-clipboard-manager = "2"
 log = "0.4"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -44,6 +47,15 @@ tauri-specta = { version = "2.0.0-rc.20", features = ["derive", "typescript"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
+
+# #14: バーコードスキャンとハプティクスはOS側の機能に依存するモバイル専用プラグイン
+# （デスクトップにはカメラでバーコードを読む手段も振動デバイスも無い）。ここで
+# ターゲットを絞ることで、デスクトップ向けビルド（CIが検証する対象）には依存関係
+# そのものが現れず、モバイルツールチェインが未セットアップでもデスクトップの
+# `cargo build`/`clippy`/`test` は壊れない。
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-barcode-scanner = "2"
+tauri-plugin-haptics = "2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
