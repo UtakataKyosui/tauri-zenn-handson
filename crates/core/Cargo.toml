@@ -10,6 +10,7 @@ license.workspace = true
 # tauri に依存しない層。§9.3 の設計制約により、ここへの tauri 依存の追加は禁止する
 # （レビュー観点 §2「ロジックがコマンド関数に直接書かれていないか」の裏返し）。
 [dependencies]
+chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
