@@ -6,7 +6,7 @@
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager};
+use tauri::{App, AppHandle, Emitter, Manager};
 
 /// デスクトップ固有のセットアップを `lib.rs::run()` から呼び出すためのフック。
 pub fn setup(app: &mut App) -> tauri::Result<()> {
@@ -15,16 +15,27 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
     Ok(())
 }
 
-// APP-05: ネイティブメニューバー。
+// APP-05/#15: ネイティブメニューバー。読書ログの書き出しをショートカット付きで置く。
 fn setup_menu(app: &App) -> tauri::Result<()> {
+    let export = MenuItem::with_id(
+        app,
+        "export",
+        "Export reading log…",
+        true,
+        Some("CmdOrCtrl+E"),
+    )?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(app, &[&export, &PredefinedMenuItem::separator(app)?, &quit])?;
     app.set_menu(menu)?;
 
-    app.on_menu_event(|app, event| {
-        if event.id() == "quit" {
-            app.exit(0);
+    // #15: 押されたらRust側で書き出しを始めず、画面へイベントを送るだけにする。
+    // 保存先を選ぶダイアログ（`save()`）は画面側にあるため、処理の入り口を1箇所にまとめる。
+    app.on_menu_event(|app, event| match event.id().as_ref() {
+        "quit" => app.exit(0),
+        "export" => {
+            let _ = app.emit("menu://export", ());
         }
+        _ => {}
     });
 
     Ok(())

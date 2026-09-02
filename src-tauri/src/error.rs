@@ -31,6 +31,12 @@ pub enum AppError {
     /// #14: `lookup_isbn` が openBD を呼ぶ際のHTTP通信の失敗（タイムアウト・DNS解決失敗等）。
     #[error("network error: {0}")]
     Network(String),
+
+    /// #15: `Mutex<Settings>` のロック取得の失敗。別のスレッドがロックを持ったまま
+    /// パニックしたときにだけ起こる（`app_core::CoreError` はtauriの`State`を知らないため、
+    /// この変種は`Core`経由ではなく`AppError`に直接置く）。
+    #[error("lock error: {0}")]
+    Lock(String),
 }
 
 impl From<sqlx::Error> for AppError {

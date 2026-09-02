@@ -33,6 +33,8 @@ const {
   scanMock,
   lookupIsbnMock,
   vibrateMock,
+  listenMock,
+  storeLoadMock,
 } = vi.hoisted(() => ({
   saveMock: vi.fn(),
   isPermissionGranted: vi.fn(),
@@ -44,6 +46,8 @@ const {
   scanMock: vi.fn(),
   lookupIsbnMock: vi.fn(),
   vibrateMock: vi.fn(),
+  listenMock: vi.fn(),
+  storeLoadMock: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: saveMock, confirm: confirmMock }));
@@ -60,6 +64,12 @@ vi.mock("@tauri-apps/plugin-barcode-scanner", () => ({
 }));
 vi.mock("@tauri-apps/plugin-haptics", () => ({ vibrate: vibrateMock }));
 vi.mock("@/lib/api/isbn", () => ({ lookupByIsbn: lookupIsbnMock }));
+// #15: `useTauriEvent`（メニューの`menu://export`）が呼ぶ `listen` をモックする。
+// モックしないと実装が実際のIPCを呼び、ハンドラ未登録のまま`unlisten`が未処理のまま
+// rejectしてしまう。
+vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
+// #15: `useDefaultSort` が呼ぶ `tauri-plugin-store` の `load` をモックする。
+vi.mock("@tauri-apps/plugin-store", () => ({ load: storeLoadMock }));
 
 // `BookList` は内部で `<Link to="/books/$bookId" />` を使うため、単体でレンダーすると
 // ルータコンテキストが無くエラーになる。テスト専用の最小限のルートツリーを組んで、
@@ -94,6 +104,14 @@ function renderBookList(queryClient: QueryClient) {
 }
 
 describe("BookList", () => {
+  beforeEach(() => {
+    listenMock.mockReset().mockResolvedValue(vi.fn());
+    storeLoadMock.mockReset().mockResolvedValue({
+      get: vi.fn().mockResolvedValue(undefined),
+      set: vi.fn().mockResolvedValue(undefined),
+    });
+  });
+
   it("shows the loading state before the command resolves", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     let resolveBooks: (books: ReturnType<typeof buildBook>[]) => void = () => {};
