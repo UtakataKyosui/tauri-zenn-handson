@@ -17,7 +17,13 @@
       "error": "Failed to load: {{message}}",
       "keywordPlaceholder": "Filter by title or author",
       "allGenres": "All genres",
-      "createdAt": "Registered on"
+      "createdAt": "Registered on",
+      "exportButton": "Export as CSV",
+      "exporting": "Exporting",
+      "exportError": "Failed to export: {{message}}",
+      "exportSuccessTitle": "Export complete",
+      "exportSuccessBody": "Exported {{count}} book(s) to CSV.",
+      "csvFilterName": "CSV"
     },
     "detail": {
       "title": "Book detail",

@@ -30,3 +30,10 @@ export async function deleteBook(id: number): Promise<void> {
   const result = await commands.deleteBook(id);
   if (result.status === "error") throw new Error(JSON.stringify(result.error));
 }
+
+/** #12: 全ての本を CSV にして `path` へ書き出す。戻り値は書き出した件数。 */
+export async function exportBooks(path: string): Promise<number> {
+  const result = await commands.exportBooks(path);
+  if (result.status === "error") throw new Error(JSON.stringify(result.error));
+  return result.data;
+}

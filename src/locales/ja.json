@@ -17,7 +17,13 @@
       "error": "読み込みに失敗しました: {{message}}",
       "keywordPlaceholder": "題名や著者で絞り込む",
       "allGenres": "すべてのジャンル",
-      "createdAt": "登録日"
+      "createdAt": "登録日",
+      "exportButton": "CSVで書き出す",
+      "exporting": "書き出しています",
+      "exportError": "書き出しに失敗しました: {{message}}",
+      "exportSuccessTitle": "書き出しが完了しました",
+      "exportSuccessBody": "{{count}}件の本をCSVに書き出しました。",
+      "csvFilterName": "CSV"
     },
     "detail": {
       "title": "本の詳細",

@@ -146,6 +146,18 @@ async deleteBook(id: number) : Promise<Result<null, AppError>> {
 }
 },
 /**
+ * #12 のコマンド。全ての本を CSV にして `path` へ書き出し、書き出した件数を返す。
+ * 実際の CSV 組み立てとファイル I/O は `app_core::domain::book::export_csv` に閉じる。
+ */
+async exportBooks(path: string) : Promise<Result<number, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_books", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * FE-06: フロントの初期化が完了したらメイン画面から呼び出す。スプラッシュを閉じて
  * メインウィンドウを表示する。デスクトップ・モバイル双方の window 構成で動作する。
  */
