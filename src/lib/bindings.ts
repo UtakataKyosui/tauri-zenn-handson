@@ -184,6 +184,26 @@ async closeSplashscreen() : Promise<Result<null, AppError>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getExportDir() : Promise<Result<string | null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_export_dir") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * #15: 書き出し先ダイアログの初期表示に使う直近の保存先ディレクトリを覚える。
+ * ロックの取得は、別のスレッドがロックを持ったままパニックしたときにだけ失敗する。
+ */
+async setExportDir(dir: string) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_export_dir", { dir }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * APP-08: 自動アップデート。署名検証は tauri-plugin-updater が config の pubkey に基づき
  * 行う（CI-05 で鍵と配信マニフェストを生成する）。デスクトップのみで意味を持つ機能
@@ -241,7 +261,13 @@ export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; mess
 /**
  * #14: `lookup_isbn` が openBD を呼ぶ際のHTTP通信の失敗（タイムアウト・DNS解決失敗等）。
  */
-{ kind: "Network"; message: string }
+{ kind: "Network"; message: string } | 
+/**
+ * #15: `Mutex<Settings>` のロック取得の失敗。別のスレッドがロックを持ったまま
+ * パニックしたときにだけ起こる（`app_core::CoreError` はtauriの`State`を知らないため、
+ * この変種は`Core`経由ではなく`AppError`に直接置く）。
+ */
+{ kind: "Lock"; message: string }
 /**
  * データベースから読み出した本のレコード。
  */

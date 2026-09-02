@@ -16,19 +16,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { bookListQuery, useCreateBook } from "@/hooks/use-books";
+import { useDefaultSort } from "@/hooks/use-default-sort";
+import { useTauriEvent } from "@/hooks/use-tauri-event";
 import { scanIsbn } from "@/lib/api/barcode";
 import { exportBooks } from "@/lib/api/books";
 import { lookupByIsbn } from "@/lib/api/isbn";
+import { getExportDir, setExportDir } from "@/lib/api/settings";
 import type { Book } from "@/lib/bindings";
 import { notifyRegistrationHaptic } from "@/lib/haptics";
 import { notify } from "@/lib/notify";
+import { dirname } from "@/lib/path";
 import { isMobile } from "@/lib/platform";
 import { useToastStore } from "@/stores/toast-store";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   type ColumnFiltersState,
-  type SortingState,
   createColumnHelper,
   flexRender,
   getCoreRowModel,
@@ -62,7 +65,8 @@ export function BookList() {
   // ルートIDが一致せずエラーになるため、ルートに縛られない汎用フックを使う。
   const { keyword = "" } = useSearch({ strict: false }) as BookSearch;
   const navigate = useNavigate();
-  const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
+  // #15: 一覧の既定の並び順を利用者ごとの設定として保存する（tauri-plugin-store）。
+  const [sorting, setSorting] = useDefaultSort();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [exporting, setExporting] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -76,15 +80,25 @@ export function BookList() {
   // #12: 全ての本を CSV に書き出す。保存先の選択をキャンセルした場合（`path === null`）は
   // 何もしない。書き出し後の通知失敗・場所を開く操作の失敗は、書き出し自体は成功しているため
   // エラー表示せず無視する。
+  // #15: 書き出しボタンとメニュー（`CmdOrCtrl+E`）の両方から呼ばれる。ボタンは
+  // `disabled={exporting}`で連打を防いでいるが、メニューのショートカットはボタンの
+  // disabled状態を経由しないため、ここでも進行中の呼び出しを弾く。
+  // 直前に選んだ保存先ディレクトリを`export_dir`（メモリ上のみ、次回起動では復元しない）
+  // として覚えておき、次回のダイアログの初期表示に使う。
   const handleExport = async () => {
+    if (exporting) return;
     setExporting(true);
     try {
+      const defaultDir = await getExportDir().catch(() => null);
       const path = await save({
+        defaultPath: defaultDir ?? undefined,
         filters: [{ name: t("books.list.csvFilterName"), extensions: ["csv"] }],
       });
       if (path === null) return;
 
       const count = await exportBooks(path);
+      const dir = dirname(path);
+      if (dir) await setExportDir(dir).catch(() => {});
       await notify(
         t("books.list.exportSuccessTitle"),
         t("books.list.exportSuccessBody", { count }),
@@ -99,6 +113,12 @@ export function BookList() {
       setExporting(false);
     }
   };
+
+  // #15: デスクトップのメニュー「読書ログを書き出す」（`CmdOrCtrl+E`）から送られる
+  // イベントを受け取り、既存の書き出し処理を呼ぶ。
+  useTauriEvent("menu://export", () => {
+    handleExport();
+  });
 
   // #14: スキャン → ISBN取得 → 書誌情報API → 確認ダイアログ → 登録 → 通知・ハプティクス、
   // の流れ。スキャンの取り消しやカメラ権限拒否時は例外が起きるので、ISBN手入力の画面

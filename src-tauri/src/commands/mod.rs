@@ -7,6 +7,7 @@ pub mod greeting;
 pub mod isbn;
 pub mod long_task;
 pub mod notes;
+pub mod settings;
 #[cfg(desktop)]
 pub mod updater;
 pub mod window;
@@ -17,6 +18,7 @@ pub use greeting::greet;
 pub use isbn::lookup_isbn;
 pub use long_task::{cancel_long_task, start_long_task};
 pub use notes::{create_note, delete_note, list_notes};
+pub use settings::{get_export_dir, set_export_dir};
 #[cfg(desktop)]
 pub use updater::{check_for_update, install_update};
 pub use window::close_splashscreen;
