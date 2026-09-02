@@ -101,6 +101,51 @@ async deleteNote(id: number) : Promise<Result<null, AppError>> {
 }
 },
 /**
+ * #6 のコマンド。SQL 組み立てとコンパイル時検証は `app_core::domain::book` 側
+ * （`sqlx::query_as!`）に閉じ、ここでは呼び出しと State からの取得のみを行う
+ * （`notes` コマンドと同じ薄いアダプタ層のパターン。docs/testing.md §3）。
+ */
+async listBooks() : Promise<Result<Book[], AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_books") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getBook(id: number) : Promise<Result<Book, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_book", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async createBook(input: NewBook) : Promise<Result<Book, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_book", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateBook(id: number, input: NewBook) : Promise<Result<Book, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_book", { id, input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteBook(id: number) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_book", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * FE-06: フロントの初期化が完了したらメイン画面から呼び出す。スプラッシュを閉じて
  * メインウィンドウを表示する。デスクトップ・モバイル双方の window 構成で動作する。
  */
@@ -167,13 +212,30 @@ taskProgress: "task-progress"
  */
 export type AppError = { kind: "Core"; message: CoreError } | { kind: "Io"; message: string } | { kind: "Database"; message: string } | { kind: "Migration"; message: string } | { kind: "Path"; message: string }
 /**
+ * データベースから読み出した本のレコード。
+ */
+export type Book = { id: number; title: string; author: string; status: ReadingStatus; note: string; genre: Genre; created_at: string }
+/**
  * アプリ全体で共有する統一エラー型（RS-04）。
  * 
  * `crates/core` の全ての公開関数はこの型（または個別の `thiserror` 型を経由してこの型へ
  * 変換されるもの）を返す。`src-tauri` のコマンド層はこれを `serde` でフロントへシリアライズする。
  */
 export type CoreError = { kind: "InvalidInput"; message: string } | { kind: "NotFound"; message: string } | { kind: "Internal" }
+/**
+ * 本のジャンル。
+ */
+export type Genre = "novel" | "non_fiction" | "business" | "technology" | "other"
+/**
+ * 新規登録時にフロントエンドから受け取る入力。
+ */
+export type NewBook = { title: string; author: string; status: ReadingStatus; note: string; genre: Genre }
 export type Note = { id: number; title: string; body: string }
+/**
+ * 本を読み終えているかどうかの状態。文字列ではなく列挙型にすることで、
+ * 打ち間違いをコンパイルで止める。
+ */
+export type ReadingStatus = "unread" | "reading" | "finished"
 export type TaskProgress = { task_id: string; completed: number; total: number; status: TaskStatus }
 export type TaskStatus = "running" | "completed" | "cancelled"
 export type UpdateInfo = { available: boolean; version: string | null }

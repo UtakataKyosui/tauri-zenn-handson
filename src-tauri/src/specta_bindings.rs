@@ -25,6 +25,11 @@ pub fn typed_builder() -> Builder {
             crate::commands::notes::create_note,
             crate::commands::notes::list_notes,
             crate::commands::notes::delete_note,
+            crate::commands::book::list_books,
+            crate::commands::book::get_book,
+            crate::commands::book::create_book,
+            crate::commands::book::update_book,
+            crate::commands::book::delete_book,
             crate::commands::window::close_splashscreen,
             crate::commands::updater::check_for_update,
             crate::commands::updater::install_update,
@@ -45,6 +50,11 @@ pub fn typed_builder() -> Builder {
             crate::commands::notes::create_note,
             crate::commands::notes::list_notes,
             crate::commands::notes::delete_note,
+            crate::commands::book::list_books,
+            crate::commands::book::get_book,
+            crate::commands::book::create_book,
+            crate::commands::book::update_book,
+            crate::commands::book::delete_book,
             crate::commands::window::close_splashscreen,
         ])
         .events(collect_events![crate::tasks::TaskProgress])

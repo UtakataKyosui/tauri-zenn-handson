@@ -1,8 +1,11 @@
-//! 読書ログのドメイン型（#5）。CRUD ロジックは Tauri コマンド層と合わせて後続 Issue で追加する。
+//! 読書ログのドメイン型と CRUD ロジック（#5, #6）。
 //! ここでは永続化される形（`Book`）と新規登録時の入力（`NewBook`）を分けて定義する。
 //! `id` と `created_at` はデータベース側が決めるため `NewBook` は持たない。
 
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
+
+use crate::error::{CoreError, CoreResult};
 
 /// 本を読み終えているかどうかの状態。文字列ではなく列挙型にすることで、
 /// 打ち間違いをコンパイルで止める。
@@ -49,9 +52,222 @@ pub struct NewBook {
     pub genre: Genre,
 }
 
+/// SQL は `sqlx::query_as!` 系マクロで組み立て、コンパイル時に検証する
+/// （文字列連結で組まない。レビュー観点 §2）。`status` / `genre` / `created_at` は
+/// SQLite 側が TEXT 列のため、型注釈（`as "status: ReadingStatus"` 等）を付けないと
+/// マクロが `String` に推論してしまう点に注意する。
+pub async fn create(pool: &SqlitePool, input: NewBook) -> CoreResult<Book> {
+    if input.title.trim().is_empty() {
+        return Err(CoreError::InvalidInput("title must not be empty".into()));
+    }
+
+    let book = sqlx::query_as!(
+        Book,
+        r#"INSERT INTO books (title, author, status, note, genre)
+           VALUES (?1, ?2, ?3, ?4, ?5)
+           RETURNING id, title, author, status as "status: ReadingStatus", note,
+                     genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
+        input.title,
+        input.author,
+        input.status,
+        input.note,
+        input.genre,
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to insert book");
+        CoreError::Internal
+    })?;
+
+    Ok(book)
+}
+
+pub async fn list(pool: &SqlitePool) -> CoreResult<Vec<Book>> {
+    let books = sqlx::query_as!(
+        Book,
+        r#"SELECT id, title, author, status as "status: ReadingStatus", note,
+                  genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>"
+           FROM books ORDER BY created_at DESC, id DESC"#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to list books");
+        CoreError::Internal
+    })?;
+
+    Ok(books)
+}
+
+pub async fn get(pool: &SqlitePool, id: i64) -> CoreResult<Book> {
+    sqlx::query_as!(
+        Book,
+        r#"SELECT id, title, author, status as "status: ReadingStatus", note,
+                  genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>"
+           FROM books WHERE id = ?1"#,
+        id,
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to fetch book");
+        CoreError::Internal
+    })?
+    .ok_or_else(|| CoreError::NotFound(format!("book {id}")))
+}
+
+pub async fn update(pool: &SqlitePool, id: i64, input: NewBook) -> CoreResult<Book> {
+    if input.title.trim().is_empty() {
+        return Err(CoreError::InvalidInput("title must not be empty".into()));
+    }
+
+    sqlx::query_as!(
+        Book,
+        r#"UPDATE books SET title = ?1, author = ?2, status = ?3, note = ?4, genre = ?5
+           WHERE id = ?6
+           RETURNING id, title, author, status as "status: ReadingStatus", note,
+                     genre as "genre: Genre", created_at as "created_at: chrono::DateTime<chrono::Utc>""#,
+        input.title,
+        input.author,
+        input.status,
+        input.note,
+        input.genre,
+        id,
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to update book");
+        CoreError::Internal
+    })?
+    .ok_or_else(|| CoreError::NotFound(format!("book {id}")))
+}
+
+pub async fn delete(pool: &SqlitePool, id: i64) -> CoreResult<()> {
+    let result = sqlx::query!("DELETE FROM books WHERE id = ?1", id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to delete book");
+            CoreError::Internal
+        })?;
+
+    if result.rows_affected() == 0 {
+        return Err(CoreError::NotFound(format!("book {id}")));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::connect_in_memory;
+
+    fn sample_book() -> NewBook {
+        NewBook {
+            title: "Sample book".to_string(),
+            author: "Sample author".to_string(),
+            status: ReadingStatus::Unread,
+            note: String::new(),
+            genre: Genre::Other,
+        }
+    }
+
+    #[tokio::test]
+    async fn creates_and_lists_a_book() {
+        let pool = connect_in_memory().await.unwrap();
+
+        create(&pool, sample_book()).await.unwrap();
+        let books = list(&pool).await.unwrap();
+
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].title, "Sample book");
+    }
+
+    #[tokio::test]
+    async fn rejects_an_empty_title_on_create() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut input = sample_book();
+        input.title = "  ".to_string();
+
+        let err = create(&pool, input).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn gets_an_existing_book_by_id() {
+        let pool = connect_in_memory().await.unwrap();
+        let created = create(&pool, sample_book()).await.unwrap();
+
+        let fetched = get(&pool, created.id).await.unwrap();
+
+        assert_eq!(fetched, created);
+    }
+
+    #[tokio::test]
+    async fn returns_not_found_when_getting_a_missing_book() {
+        let pool = connect_in_memory().await.unwrap();
+
+        let err = get(&pool, 999).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn updates_an_existing_book() {
+        let pool = connect_in_memory().await.unwrap();
+        let created = create(&pool, sample_book()).await.unwrap();
+        let mut input = sample_book();
+        input.title = "Updated title".to_string();
+        input.status = ReadingStatus::Finished;
+
+        let updated = update(&pool, created.id, input).await.unwrap();
+
+        assert_eq!(updated.title, "Updated title");
+        assert_eq!(updated.status, ReadingStatus::Finished);
+    }
+
+    #[tokio::test]
+    async fn rejects_an_empty_title_on_update() {
+        let pool = connect_in_memory().await.unwrap();
+        let created = create(&pool, sample_book()).await.unwrap();
+        let mut input = sample_book();
+        input.title = " ".to_string();
+
+        let err = update(&pool, created.id, input).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn returns_not_found_when_updating_a_missing_book() {
+        let pool = connect_in_memory().await.unwrap();
+
+        let err = update(&pool, 999, sample_book()).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn deletes_an_existing_book() {
+        let pool = connect_in_memory().await.unwrap();
+        let created = create(&pool, sample_book()).await.unwrap();
+
+        delete(&pool, created.id).await.unwrap();
+
+        assert_eq!(list(&pool).await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn returns_not_found_when_deleting_a_missing_book() {
+        let pool = connect_in_memory().await.unwrap();
+
+        let err = delete(&pool, 999).await.unwrap_err();
+
+        assert!(matches!(err, CoreError::NotFound(_)));
+    }
 
     #[test]
     fn serializes_reading_status_in_snake_case() {

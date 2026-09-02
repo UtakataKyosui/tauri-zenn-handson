@@ -1,6 +1,7 @@
 //! `#[tauri::command]` 群。入力の変換・検証と `app_core` の呼び出しのみを行う薄いアダプタ層。
 //! ビジネスロジックはここに書かず `crates/core` に置くこと（docs/testing.md §3）。
 
+pub mod book;
 pub mod credentials;
 pub mod greeting;
 pub mod long_task;
@@ -9,6 +10,7 @@ pub mod notes;
 pub mod updater;
 pub mod window;
 
+pub use book::{create_book, delete_book, get_book, list_books, update_book};
 pub use credentials::{delete_credential, has_credential, save_credential};
 pub use greeting::greet;
 pub use long_task::{cancel_long_task, start_long_task};
