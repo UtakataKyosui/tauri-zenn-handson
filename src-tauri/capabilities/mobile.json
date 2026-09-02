@@ -5,7 +5,8 @@
   "platforms": ["iOS", "android"],
   "windows": ["main"],
   "permissions": [
-    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-message",
     "fs:default",
     "notification:default",
     "opener:default",
