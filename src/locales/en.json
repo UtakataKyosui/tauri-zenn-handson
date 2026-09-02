@@ -31,7 +31,8 @@
       "edit": "Edit",
       "delete": "Delete",
       "deleting": "Deleting",
-      "deleteConfirm": "This will delete {{title}}. Are you sure?"
+      "deleteConfirm": "This will delete {{title}}. Are you sure?",
+      "deleteError": "Failed to delete: {{message}}"
     },
     "new": { "title": "New book" },
     "form": {
@@ -42,7 +43,8 @@
       "genre": "Genre",
       "note": "Note",
       "submit": "Save",
-      "submitting": "Saving"
+      "submitting": "Saving",
+      "saveError": "Failed to save: {{message}}"
     },
     "status": {
       "unread": "Unread",
