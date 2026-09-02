@@ -11,7 +11,11 @@
     "loading": "送信中..."
   },
   "books": {
-    "list": { "title": "読書ログ" },
+    "list": {
+      "title": "読書ログ",
+      "loading": "読み込み中です",
+      "error": "読み込みに失敗しました: {{message}}"
+    },
     "detail": { "title": "本の詳細", "id": "本のID: {{bookId}}" },
     "new": { "title": "本を登録する" }
   },

@@ -1,7 +1,10 @@
-import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
+import { Link, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-export const Route = createRootRoute({
+// #9: `/books/$bookId` の loader が `context.queryClient.ensureQueryData` を呼べるように、
+// ルータ全体のコンテキスト型に QueryClient を含める（`src/app/router.tsx` で実値を渡す）。
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
 });
 
