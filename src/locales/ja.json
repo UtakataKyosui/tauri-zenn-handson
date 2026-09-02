@@ -1,5 +1,5 @@
 {
-  "nav": { "home": "ホーム", "settings": "設定", "demo": "デモ" },
+  "nav": { "home": "読書ログ", "newBook": "本を登録する", "settings": "設定", "demo": "デモ" },
   "errorBoundary": {
     "message": "予期しないエラーが発生しました: {{message}}",
     "retry": "再試行"
@@ -9,6 +9,11 @@
     "nameInput": "名前",
     "greet": "挨拶する",
     "loading": "送信中..."
+  },
+  "books": {
+    "list": { "title": "読書ログ" },
+    "detail": { "title": "本の詳細", "id": "本のID: {{bookId}}" },
+    "new": { "title": "本を登録する" }
   },
   "settings": {
     "title": "設定",

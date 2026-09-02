@@ -1,5 +1,5 @@
 {
-  "nav": { "home": "Home", "settings": "Settings", "demo": "Demo" },
+  "nav": { "home": "Reading log", "newBook": "New book", "settings": "Settings", "demo": "Demo" },
   "errorBoundary": {
     "message": "An unexpected error occurred: {{message}}",
     "retry": "Retry"
@@ -9,6 +9,11 @@
     "nameInput": "Name",
     "greet": "Greet",
     "loading": "Sending..."
+  },
+  "books": {
+    "list": { "title": "Reading log" },
+    "detail": { "title": "Book detail", "id": "Book ID: {{bookId}}" },
+    "new": { "title": "New book" }
   },
   "settings": {
     "title": "Settings",
