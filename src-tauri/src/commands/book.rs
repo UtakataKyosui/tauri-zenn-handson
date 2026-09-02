@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use sqlx::SqlitePool;
 use tauri::State;
 
@@ -35,4 +37,12 @@ pub async fn update_book(id: i64, input: NewBook, pool: State<'_, SqlitePool>) -
 #[specta::specta]
 pub async fn delete_book(id: i64, pool: State<'_, SqlitePool>) -> AppResult<()> {
     Ok(app_core::domain::book::delete(&pool, id).await?)
+}
+
+/// #12 のコマンド。全ての本を CSV にして `path` へ書き出し、書き出した件数を返す。
+/// 実際の CSV 組み立てとファイル I/O は `app_core::domain::book::export_csv` に閉じる。
+#[tauri::command]
+#[specta::specta]
+pub async fn export_books(path: PathBuf, pool: State<'_, SqlitePool>) -> AppResult<u64> {
+    Ok(app_core::domain::book::export_csv(&pool, &path).await?)
 }

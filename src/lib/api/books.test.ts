@@ -2,7 +2,7 @@ import type { NewBook } from "@/lib/bindings";
 import { buildBook } from "@/test/factories/book";
 import { mockCommand } from "@/test/mocks/tauri";
 import { describe, expect, it } from "vitest";
-import { createBook, deleteBook, getBook, listBooks, updateBook } from "./books";
+import { createBook, deleteBook, exportBooks, getBook, listBooks, updateBook } from "./books";
 
 describe("books api", () => {
   it("lists books returned by the command", async () => {
@@ -57,5 +57,19 @@ describe("books api", () => {
     });
 
     await expect(deleteBook(1)).rejects.toThrow();
+  });
+
+  it("exports books and returns the written row count", async () => {
+    mockCommand("export_books", () => 3);
+
+    await expect(exportBooks("/tmp/books.csv")).resolves.toBe(3);
+  });
+
+  it("throws when the export command fails", async () => {
+    mockCommand("export_books", () => {
+      throw { kind: "Io", message: "disk full" };
+    });
+
+    await expect(exportBooks("/tmp/books.csv")).rejects.toThrow();
   });
 });

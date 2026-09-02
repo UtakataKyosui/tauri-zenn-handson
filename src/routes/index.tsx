@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -15,7 +16,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { bookListQuery } from "@/hooks/use-books";
+import { exportBooks } from "@/lib/api/books";
 import type { Book } from "@/lib/bindings";
+import { notify } from "@/lib/notify";
+import { useToastStore } from "@/stores/toast-store";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -28,6 +32,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { save } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -54,9 +60,38 @@ export function BookList() {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [exporting, setExporting] = useState(false);
+  const pushToast = useToastStore((s) => s.push);
 
   const setKeyword = (value: string) => {
     navigate({ to: ".", search: { keyword: value || undefined }, replace: true });
+  };
+
+  // #12: 全ての本を CSV に書き出す。保存先の選択をキャンセルした場合（`path === null`）は
+  // 何もしない。書き出し後の通知失敗・場所を開く操作の失敗は、書き出し自体は成功しているため
+  // エラー表示せず無視する。
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const path = await save({
+        filters: [{ name: t("books.list.csvFilterName"), extensions: ["csv"] }],
+      });
+      if (path === null) return;
+
+      const count = await exportBooks(path);
+      await notify(
+        t("books.list.exportSuccessTitle"),
+        t("books.list.exportSuccessBody", { count }),
+      ).catch(() => {});
+      await revealItemInDir(path).catch(() => {});
+    } catch (e) {
+      pushToast({
+        title: t("books.list.exportError", { message: String(e) }),
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const genreLabel: Record<Book["genre"], string> = {
@@ -128,7 +163,12 @@ export function BookList() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <h1 className="text-2xl font-semibold">{t("books.list.title")}</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">{t("books.list.title")}</h1>
+        <Button type="button" variant="outline" onClick={handleExport} disabled={exporting}>
+          {exporting ? t("books.list.exporting") : t("books.list.exportButton")}
+        </Button>
+      </div>
       <Input
         value={keyword}
         onChange={(e) => setKeyword(e.target.value)}

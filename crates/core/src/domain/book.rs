@@ -159,6 +159,65 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> CoreResult<()> {
     Ok(())
 }
 
+impl ReadingStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            ReadingStatus::Unread => "unread",
+            ReadingStatus::Reading => "reading",
+            ReadingStatus::Finished => "finished",
+        }
+    }
+}
+
+impl Genre {
+    fn as_str(self) -> &'static str {
+        match self {
+            Genre::Novel => "novel",
+            Genre::NonFiction => "non_fiction",
+            Genre::Business => "business",
+            Genre::Technology => "technology",
+            Genre::Other => "other",
+        }
+    }
+}
+
+/// CSV のフィールドをダブルクォートで囲み、内部の `"` は `""` に置換する（RFC 4180）。
+fn csv_field(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
+/// #12: 全ての本を CSV にして `path` へ書き出す。列は
+/// `title,author,status,note,genre,created_at` の順で固定する。既存の `list` を再利用するため
+/// 新規の SQL クエリは追加していない（`cargo sqlx prepare` の再実行は不要）。
+/// ファイル I/O は `src-tauri/src/lib.rs` の起動時セットアップと同じく同期 API を使う
+/// （crates/core はこの用途向けの非同期 fs 依存を追加していないため）。
+pub async fn export_csv(pool: &SqlitePool, path: &std::path::Path) -> CoreResult<u64> {
+    let books = list(pool).await?;
+
+    let mut csv = String::from("title,author,status,note,genre,created_at\n");
+    for book in &books {
+        csv.push_str(&csv_field(&book.title));
+        csv.push(',');
+        csv.push_str(&csv_field(&book.author));
+        csv.push(',');
+        csv.push_str(&csv_field(book.status.as_str()));
+        csv.push(',');
+        csv.push_str(&csv_field(&book.note));
+        csv.push(',');
+        csv.push_str(&csv_field(book.genre.as_str()));
+        csv.push(',');
+        csv.push_str(&csv_field(&book.created_at.to_rfc3339()));
+        csv.push('\n');
+    }
+
+    std::fs::write(path, csv).map_err(|e| {
+        tracing::error!(error = %e, "failed to write books csv");
+        CoreError::Internal
+    })?;
+
+    Ok(books.len() as u64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,5 +362,57 @@ mod tests {
 
         assert_eq!(new_book.status, ReadingStatus::Reading);
         assert_eq!(new_book.genre, Genre::Technology);
+    }
+
+    /// テスト用に一意な一時ファイルパスを作る。`tempfile` crate は依存に無いため
+    /// `std::env::temp_dir()` を使い、テスト終了時に自分で削除する。
+    fn temp_csv_path(label: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "book_export_test_{label}_{}.csv",
+            std::process::id()
+        ))
+    }
+
+    #[tokio::test]
+    async fn exports_books_as_csv_with_header_and_row_count() {
+        let pool = connect_in_memory().await.unwrap();
+        create(&pool, sample_book()).await.unwrap();
+        let path = temp_csv_path("basic");
+
+        let count = export_csv(&pool, &path).await.unwrap();
+
+        assert_eq!(count, 1);
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.starts_with("title,author,status,note,genre,created_at\n"));
+        assert!(content.contains("\"Sample book\",\"Sample author\",\"unread\",\"\",\"other\","));
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn exports_zero_rows_when_there_are_no_books() {
+        let pool = connect_in_memory().await.unwrap();
+        let path = temp_csv_path("empty");
+
+        let count = export_csv(&pool, &path).await.unwrap();
+
+        assert_eq!(count, 0);
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content, "title,author,status,note,genre,created_at\n");
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn escapes_double_quotes_in_csv_fields() {
+        let pool = connect_in_memory().await.unwrap();
+        let mut input = sample_book();
+        input.title = "A \"quoted\" title".to_string();
+        create(&pool, input).await.unwrap();
+        let path = temp_csv_path("quotes");
+
+        export_csv(&pool, &path).await.unwrap();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("\"A \"\"quoted\"\" title\""));
+        std::fs::remove_file(&path).unwrap();
     }
 }
