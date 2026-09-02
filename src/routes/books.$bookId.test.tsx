@@ -15,6 +15,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Route as BookDetailFileRoute } from "./books.$bookId";
 
+// #11: `window.confirm` の代わりに `@tauri-apps/plugin-dialog` の `confirm` を使うため、
+// demo.test.tsx と同じ vi.mock + vi.hoisted のパターンでモックする。
+const { confirmMock } = vi.hoisted(() => ({
+  confirmMock: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ confirm: confirmMock }));
+
 // `BookDetail` の `Route.useParams()`/`Route.useNavigate()` はルートIDの文字列一致で
 // 解決されるため、`index.test.tsx` と違い実ファイルルートのコンポーネントをそのまま使う。
 function renderBookDetail(queryClient: QueryClient, bookId: number) {
@@ -44,7 +52,7 @@ function renderBookDetail(queryClient: QueryClient, bookId: number) {
 
 describe("BookDetail", () => {
   beforeEach(() => {
-    vi.spyOn(window, "confirm");
+    confirmMock.mockReset();
   });
 
   afterEach(() => {
@@ -92,14 +100,14 @@ describe("BookDetail", () => {
       get_book: () => book,
       delete_book: () => null,
     });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    confirmMock.mockResolvedValue(true);
     const user = userEvent.setup();
 
     renderBookDetail(queryClient, 1);
 
     await user.click(await screen.findByRole("button", { name: i18n.t("books.detail.delete") }));
 
-    expect(window.confirm).toHaveBeenCalledWith(
+    expect(confirmMock).toHaveBeenCalledWith(
       i18n.t("books.detail.deleteConfirm", { title: "Readable Code" }),
     );
     await waitFor(() => {
@@ -118,7 +126,7 @@ describe("BookDetail", () => {
         return null;
       },
     });
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    confirmMock.mockResolvedValue(false);
     const user = userEvent.setup();
 
     renderBookDetail(queryClient, 1);

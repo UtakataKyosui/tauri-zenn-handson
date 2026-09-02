@@ -4,6 +4,8 @@ import { bookQuery, useDeleteBook, useUpdateBook } from "@/hooks/use-books";
 import type { NewBook } from "@/lib/bindings";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 // #9: loader で `queryClient.ensureQueryData` を呼び、コンポーネント側は
@@ -22,6 +24,7 @@ function BookDetail() {
   const { data: book } = useSuspenseQuery(bookQuery(id));
   const updateBook = useUpdateBook(id);
   const deleteBook = useDeleteBook();
+  const [confirming, setConfirming] = useState(false);
 
   const defaultValues: NewBook = {
     title: book.title,
@@ -31,13 +34,19 @@ function BookDetail() {
     genre: book.genre,
   };
 
-  // #10: 削除の確認は Tauri のダイアログプラグイン（`confirm`）を使う設計が本来の想定だが、
-  // 権限（`dialog:allow-confirm`）の追加は #11 の範囲のため、ここでは暫定的に
-  // ブラウザ標準の `window.confirm` を使う。
+  // #11: 削除の確認は Tauri のダイアログプラグインを使う。`confirm()` は内部で
+  // `message` コマンドを呼ぶため、必要な権限は `dialog:allow-confirm` ではなく
+  // `dialog:allow-message`（`allow-confirm` は v3 で削除予定のエイリアス）。
   const handleDelete = async () => {
-    if (!window.confirm(t("books.detail.deleteConfirm", { title: book.title }))) return;
-    await deleteBook.mutateAsync(id);
-    navigate({ to: "/" });
+    setConfirming(true);
+    try {
+      const confirmed = await confirm(t("books.detail.deleteConfirm", { title: book.title }));
+      if (!confirmed) return;
+      await deleteBook.mutateAsync(id);
+      navigate({ to: "/" });
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -54,7 +63,7 @@ function BookDetail() {
         type="button"
         variant="destructive"
         onClick={handleDelete}
-        disabled={deleteBook.isPending}
+        disabled={confirming || deleteBook.isPending}
       >
         {deleteBook.isPending ? t("books.detail.deleting") : t("books.detail.delete")}
       </Button>

@@ -30,6 +30,17 @@ src/          … React (UI・状態・ルーティング)
 機能追加一式（core・コマンド・フロント・テスト）をまとめて生成するジェネレータは
 Phase 3（#14, GEN-04）で追加する。
 
+### 権限の不足に気づく（#11）
+
+capability の権限が足りないままコマンドやプラグインの機能を呼ぶと、実行時にエラーになる。
+`pnpm tauri dev` を止めて起動し直さないと、capability ファイルの変更が反映されないことがある。
+
+| エラーメッセージに含まれる語 | 見るところ |
+| --- | --- |
+| `not allowed`、`forbidden` | `src-tauri/capabilities/*.json` の `permissions` に必要な項目が足りない |
+| `not found`（コマンド名） | `invoke_handler` への登録漏れ、またはコマンド名の打ち間違い |
+| `window not found` | capability の `windows` に、呼び出し元ウィンドウのラベルが無い |
+
 ## 3. 型生成の流れ（RS-05 / GEN-01）
 
 ```

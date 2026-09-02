@@ -5,7 +5,8 @@
   "platforms": ["macOS", "windows", "linux"],
   "windows": ["main"],
   "permissions": [
-    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-message",
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-read-file",
