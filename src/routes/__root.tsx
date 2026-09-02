@@ -7,6 +7,7 @@ export const Route = createRootRoute({
 
 const NAV_ITEMS = [
   { to: "/", key: "nav.home" },
+  { to: "/books/new", key: "nav.newBook" },
   { to: "/settings", key: "nav.settings" },
   { to: "/demo", key: "nav.demo" },
 ] as const;
