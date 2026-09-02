@@ -4,14 +4,14 @@ import { useDeepLink } from "@/hooks/use-deep-link";
 import { useTheme } from "@/hooks/use-theme";
 import { closeSplashscreen } from "@/lib/api/splashscreen";
 import { useToastStore } from "@/stores/toast-store";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { queryClient } from "./query-client";
 import { router } from "./router";
 import "./i18n";
 
 export function AppProviders() {
-  const [queryClient] = useState(() => new QueryClient());
   useTheme();
   const pushToast = useToastStore((s) => s.push);
 

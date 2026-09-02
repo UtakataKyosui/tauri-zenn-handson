@@ -11,7 +11,11 @@
     "loading": "Sending..."
   },
   "books": {
-    "list": { "title": "Reading log" },
+    "list": {
+      "title": "Reading log",
+      "loading": "Loading...",
+      "error": "Failed to load: {{message}}"
+    },
     "detail": { "title": "Book detail", "id": "Book ID: {{bookId}}" },
     "new": { "title": "New book" }
   },
