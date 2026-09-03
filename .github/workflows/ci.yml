@@ -236,7 +236,7 @@ jobs:
       # actions/setup-java の cache: gradle はこの時点でまだ存在しない
       # src-tauri/gen/android の gradle ファイルをハッシュ対象にできず効果が
       # 無いため、実行時に検出・保存する setup-gradle を使う。
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
