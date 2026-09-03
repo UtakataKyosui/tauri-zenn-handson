@@ -146,6 +146,30 @@ describe("BookList", () => {
     expect(screen.getByText("Dustin Boswell")).toBeInTheDocument();
   });
 
+  // #10 / #17: キーワード絞り込みを入れると、一致しない行が消えること。
+  it("reduces the visible rows when a keyword filter narrows the results", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    mockCommand("list_books", () => [
+      buildBook({ id: 1, title: "Readable Code", author: "Dustin Boswell" }),
+      buildBook({ id: 2, title: "Clean Architecture", author: "Robert Martin" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderBookList(queryClient);
+    await screen.findByText("Readable Code");
+    expect(screen.getByText("Clean Architecture")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText(i18n.t("books.list.keywordPlaceholder")),
+      "Readable",
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Clean Architecture")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Readable Code")).toBeInTheDocument();
+  });
+
   // #16: 画面幅が狭いときはカード形式（`BookCards`）に切り替わる。
   it("renders books as cards instead of a table when the viewport is narrow", async () => {
     vi.stubGlobal(
