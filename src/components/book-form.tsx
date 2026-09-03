@@ -164,8 +164,11 @@ export function BookForm({
         {(field) => (
           <div className="flex flex-col gap-2">
             <Label htmlFor={field.name}>{t("books.form.isbn")}</Label>
+            {/* #16: ISBNは数字のみのためモバイルでは数字キーパッドを出す。
+                桁数の検証自体は`isValidIsbn13`が行うため、ここでは入力補助に留める。 */}
             <Input
               id={field.name}
+              inputMode="numeric"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -181,7 +184,9 @@ export function BookForm({
 
       <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
         {([canSubmit, isSubmitting]) => (
-          <Button type="submit" disabled={!canSubmit}>
+          // #16: タッチで押しやすいよう、既存の Button バリアントのうち最大の `lg`
+          // （h-10）を使う。`button.tsx`はshadcn生成物のため手編集しない（レビュー観点§4）。
+          <Button type="submit" size="lg" disabled={!canSubmit}>
             {isSubmitting ? t("books.form.submitting") : submitLabel}
           </Button>
         )}

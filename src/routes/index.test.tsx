@@ -146,6 +146,30 @@ describe("BookList", () => {
     expect(screen.getByText("Dustin Boswell")).toBeInTheDocument();
   });
 
+  // #16: 画面幅が狭いときはカード形式（`BookCards`）に切り替わる。
+  it("renders books as cards instead of a table when the viewport is narrow", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: true,
+        media: "(max-width: 640px)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const book = buildBook({ id: 1, title: "Readable Code", author: "Dustin Boswell" });
+    mockCommand("list_books", () => [book]);
+
+    renderBookList(queryClient);
+
+    await waitFor(() => {
+      expect(screen.getByText("Readable Code")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it("shows an error message when the command rejects", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const appError = { kind: "Core", message: { kind: "Internal" } };

@@ -11,6 +11,18 @@ beforeEach(() => {
     // @ts-expect-error jsdom polyfill
     globalThis.crypto = { ...globalThis.crypto, randomUUID: () => Math.random().toString(36) };
   }
+  // #16: jsdom は window.matchMedia を実装しないため、`useIsNarrow`/`useTheme` が
+  // 未モックのテストでも例外にならないよう既定値（該当しない）を補う。個別テストが
+  // `vi.stubGlobal("matchMedia", ...)` すれば、この既定値を一時的に上書きできる。
+  if (typeof window.matchMedia !== "function") {
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: false,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+  }
 });
 
 afterEach(() => {
