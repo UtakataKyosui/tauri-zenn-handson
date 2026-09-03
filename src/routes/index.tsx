@@ -1,3 +1,4 @@
+import { BookCards } from "@/components/book-cards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { bookListQuery, useCreateBook } from "@/hooks/use-books";
 import { useDefaultSort } from "@/hooks/use-default-sort";
+import { useIsNarrow } from "@/hooks/use-is-narrow";
 import { useTauriEvent } from "@/hooks/use-tauri-event";
 import { scanIsbn } from "@/lib/api/barcode";
 import { exportBooks } from "@/lib/api/books";
@@ -72,6 +74,8 @@ export function BookList() {
   const [scanning, setScanning] = useState(false);
   const pushToast = useToastStore((s) => s.push);
   const createBook = useCreateBook();
+  // #16: 画面幅が狭いときは表の代わりにカード形式（`BookCards`）で表示する。
+  const isNarrow = useIsNarrow();
 
   const setKeyword = (value: string) => {
     navigate({ to: ".", search: { keyword: value || undefined }, replace: true });
@@ -267,36 +271,43 @@ export function BookList() {
           ))}
         </SelectContent>
       </Select>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((group) => (
-            <TableRow key={group.id}>
-              {group.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  onClick={header.column.getToggleSortingHandler()}
-                  className="cursor-pointer"
-                >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                  {header.column.getIsSorted() === "asc" && " ▲"}
-                  {header.column.getIsSorted() === "desc" && " ▼"}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {isNarrow ? (
+        <BookCards
+          books={table.getRowModel().rows.map((row) => row.original)}
+          genreLabel={genreLabel}
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    onClick={header.column.getToggleSortingHandler()}
+                    className="cursor-pointer"
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getIsSorted() === "asc" && " ▲"}
+                    {header.column.getIsSorted() === "desc" && " ▼"}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }

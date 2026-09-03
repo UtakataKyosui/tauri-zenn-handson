@@ -127,9 +127,12 @@ app_core::CoreError  →  src-tauri::AppError (#[from])  →  serde  →  フロ
 | 機能 | 正本 | 備考 |
 |---|---|---|
 | レスポンシブ設計（FE-07） | `src/routes/__root.tsx` | `sm`（640px）を境に上部ナビ／下部タブバーを切り替える。`pb-safe-bottom` 等でセーフエリアに対応 |
+| 一覧のカード表示（FE-07, #16） | `src/hooks/use-is-narrow.ts`, `src/components/book-cards.tsx`, `src/routes/index.tsx` | `useIsNarrow()`（`matchMedia("(max-width: 640px)")`）が`true`のとき、表の代わりにカード形式で一覧を表示する。ナビの切替と同じ640pxを境目にする |
 | ディープリンク（APP-09） | `tauri_plugin_deep_link`（`lib.rs`）, `src/hooks/use-deep-link.ts` | カスタム URL スキームは `tauri.conf.json` の `plugins."deep-link".schemes` が正本。両プラットフォーム対応 |
 | Android ビルド（CI-06） | `.github/workflows/release.yml` の `android` ジョブ | 署名鍵が無くてもデバッグ署名 APK の生成までは失敗しない。ストア配信はスコープ外（`docs/requirements.md` §7 未決事項 5） |
 | iOS ビルド（CI-07, P2） | — | 初版では見送り。手順は `docs/recipes/signing.md` §5 に記載（リスク R-4） |
+| 開発サーバの実機接続（#16） | `vite.config.ts` | `TAURI_DEV_HOST`環境変数がある場合のみ`server.host`とHMRのホストを実機の接続先に切り替える。`pnpm tauri android/ios dev --host <IP>`から使われる |
+| モバイルのOS権限宣言（#16） | `docs/recipes/mobile-permissions.md` | `AndroidManifest.xml`/`Info.plist`は`src-tauri/gen/`が無いと存在しないため、生成後に追加すべき権限をドキュメントにまとめておく。`src/lib/api/barcode.ts`のTODOコメントから参照する |
 
 ## 11. プラットフォーム別に意味を持たない機能の出し分け（レビュー観点 §3）
 
@@ -147,3 +150,10 @@ app_core::CoreError  →  src-tauri::AppError (#[from])  →  serde  →  フロ
   `notification:default` の capabilities が正しくても通知が出ない。動作確認は
   `pnpm tauri build` で生成した `.app` から起動して行う。`src/routes/demo.tsx` の
   `NotificationDemo` は `isPermissionGranted()` の結果を画面に表示し、この注記も併記する
+- **`src-tauri/gen/` の生成にはAndroid SDK/NDKとXcodeのCLIツール一式が必要（#16）** —
+  開発機に`ANDROID_HOME`/Android SDKが無いと`pnpm tauri android init`は
+  `Android SDK not found`で失敗する。iOS側は`pnpm tauri ios init`が`cocoapods`を
+  自動インストールしようとするが、`sudo`権限が無い環境では`gem install cocoapods`が
+  失敗して止まる。CI（`.github/workflows/release.yml`の`android`ジョブ）はAndroid SDKを
+  セットアップするステップを持つため`gen/`の生成からビルドまで通るが、SDK/NDK・Xcode・
+  cocoapodsが未整備のローカル環境では、この2コマンドの実行自体がここで止まる
