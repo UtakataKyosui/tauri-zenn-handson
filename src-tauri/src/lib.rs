@@ -63,6 +63,8 @@ pub fn run() {
             }))
             .plugin(tauri_plugin_window_state::Builder::default().build())
             .plugin(tauri_plugin_updater::Builder::new().build())
+            // #18: アップデート適用後にアプリを再起動する relaunch_app コマンドが使う。
+            .plugin(tauri_plugin_process::init())
             // #15: 起動と終了のときの処理の骨組み。読書ログは書き込みのたびに保存する設計
             // のため、閉じる前の確認ダイアログは出さない（`api.prevent_close()` を呼ばない）。
             // 未保存の状態を持つ画面を追加したときは、ここで確認フローを挟むこと。

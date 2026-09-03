@@ -3,6 +3,10 @@ export type UpdaterStatus =
   | { kind: "checking" }
   | { kind: "upToDate" }
   | { kind: "available"; version: string }
+  | { kind: "installing" }
+  // #18: ダウンロード・適用は終わったが、再起動はまだ利用者が選んでいない状態。
+  // 自動で即座に入れ替えないための中間状態（Issue #18）。
+  | { kind: "installed"; version: string }
   | { kind: "failed"; message: string };
 
 /**

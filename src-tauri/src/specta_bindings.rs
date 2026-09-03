@@ -37,6 +37,7 @@ pub fn typed_builder() -> Builder {
             crate::commands::settings::set_export_dir,
             crate::commands::updater::check_for_update,
             crate::commands::updater::install_update,
+            crate::commands::updater::relaunch_app,
         ])
         .events(collect_events![crate::tasks::TaskProgress])
 }

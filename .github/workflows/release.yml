@@ -20,7 +20,7 @@ jobs:
         include:
           - platform: "macos-latest"
             args: "--target universal-apple-darwin"
-          - platform: "ubuntu-latest"
+          - platform: "ubuntu-22.04"
             args: ""
           - platform: "windows-latest"
             args: ""
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
@@ -59,7 +59,7 @@ jobs:
       # CI-04: 証明書が無い環境でも CI が失敗しないよう、署名関連の env は
       # secrets が未設定なら空文字のまま渡す。tauri-action / bundler は
       # 空の場合は署名ステップをスキップする（R-3 対策）。
-      - uses: tauri-apps/tauri-action@v1
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # CI-05: アップデータ用の署名鍵（`pnpm tauri signer generate` で生成し、

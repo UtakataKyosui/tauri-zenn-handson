@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { type Note, createNote, deleteNote, listNotes } from "@/lib/api/notes";
 import { type TaskProgress, cancelLongTask, onTaskProgress, startLongTask } from "@/lib/api/tasks";
-import { checkForUpdate, installUpdate } from "@/lib/api/updater";
+import { checkForUpdate, installUpdate, relaunchApp } from "@/lib/api/updater";
 import { isImagePath, mimeTypeForImagePath } from "@/lib/file-preview";
 import { isDesktop } from "@/lib/platform";
 import { type UpdaterStatus, toUpdaterStatus } from "@/lib/updater-status";
@@ -347,11 +347,12 @@ function NotesDemo({ onError }: DemoSectionProps) {
   );
 }
 
-// APP-08: 自動アップデート（デスクトップ専用）
+// APP-08: 自動アップデート（デスクトップ専用）。check() → downloadAndInstall() → relaunch()
+// の各段階を画面に出し、入れ替え（インストール）と再起動はどちらも利用者の操作で進める
+// （自動で即座に入れ替えない。Issue #18）。
 function UpdaterDemo({ onError }: DemoSectionProps) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
-  const [installing, setInstalling] = useState(false);
 
   return (
     <section className="flex flex-col gap-2">
@@ -376,19 +377,37 @@ function UpdaterDemo({ onError }: DemoSectionProps) {
         </Button>
         {status.kind === "available" && (
           <Button
-            disabled={installing}
             onClick={async () => {
-              setInstalling(true);
+              const { version } = status;
+              setStatus({ kind: "installing" });
               try {
                 await installUpdate();
+                setStatus({ kind: "installed", version });
               } catch (e) {
-                onError(String(e));
-              } finally {
-                setInstalling(false);
+                const message = String(e);
+                setStatus({ kind: "failed", message });
+                onError(message);
               }
             }}
           >
             {t("demo.updater.install", { version: status.version })}
+          </Button>
+        )}
+        {status.kind === "installed" && (
+          <Button
+            onClick={async () => {
+              try {
+                // 成功時はプロセスが終了して再起動するため、この呼び出しから
+                // 戻ってくることは基本的に無い。
+                await relaunchApp();
+              } catch (e) {
+                const message = String(e);
+                setStatus({ kind: "failed", message });
+                onError(message);
+              }
+            }}
+          >
+            {t("demo.updater.relaunch")}
           </Button>
         )}
       </div>
@@ -397,6 +416,14 @@ function UpdaterDemo({ onError }: DemoSectionProps) {
       )}
       {status.kind === "upToDate" && (
         <p className="text-xs text-muted-foreground">{t("demo.updater.upToDate")}</p>
+      )}
+      {status.kind === "installing" && (
+        <p className="text-xs text-muted-foreground">{t("demo.updater.installing")}</p>
+      )}
+      {status.kind === "installed" && (
+        <p className="text-xs text-muted-foreground">
+          {t("demo.updater.installed", { version: status.version })}
+        </p>
       )}
       {status.kind === "failed" && (
         <p className="text-xs text-destructive">
