@@ -40,7 +40,9 @@ pub async fn check_for_update(app: AppHandle) -> AppResult<UpdateInfo> {
     })
 }
 
-/// アップデートをダウンロードして適用する。呼び出し後はアプリの再起動が必要。
+/// アップデートをダウンロードして適用する。呼び出し後、アプリを再起動するまでは
+/// 新しいバイナリは使われない。再起動は `relaunch_app` を呼んだ利用者の選択に
+/// 委ねる（自動で即座に入れ替えない。Issue #18）。
 #[tauri::command]
 #[specta::specta]
 pub async fn install_update(app: AppHandle) -> AppResult<()> {
@@ -58,4 +60,12 @@ pub async fn install_update(app: AppHandle) -> AppResult<()> {
         .map_err(|e| AppError::Io(e.to_string()))?;
 
     Ok(())
+}
+
+/// `install_update` の完了後、利用者が明示的に選んだタイミングでアプリを再起動する。
+/// この関数は成功時に戻らない（プロセスを終了して再起動する）。
+#[tauri::command]
+#[specta::specta]
+pub fn relaunch_app(app: AppHandle) {
+    app.request_restart();
 }

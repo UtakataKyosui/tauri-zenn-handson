@@ -47,6 +47,10 @@ tauri-specta = { version = "2.0.0-rc.20", features = ["derive", "typescript"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
+# #18: ダウンロード済みアップデートを適用した後、アプリを再起動するために使う
+# （relaunch_app コマンド）。デスクトップの自動更新フローでのみ意味を持つため
+# updater と同じ target cfg に置く。
+tauri-plugin-process = "2"
 
 # #14: バーコードスキャンとハプティクスはOS側の機能に依存するモバイル専用プラグイン
 # （デスクトップにはカメラでバーコードを読む手段も振動デバイスも無い）。ここで

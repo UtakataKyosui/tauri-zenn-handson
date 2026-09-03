@@ -29,6 +29,14 @@ specta = { version = "2.0.0-rc.20", features = ["derive", "chrono"] }
 incremental = true
 
 [profile.release]
+# #18: バイナリサイズと起動時間を優先する配布ビルド向け設定。
+# panic = "abort" は既存の設定を維持する。パニックログは panic_handler.rs の
+# set_hook がデフォルトフックより先に走り、abort でも到達するため、この設定に
+# しても「落ちた記録を残す」用途（RS-13）は失われない（docs/recipes/signing.md §6）。
+# strip = true によりバックトレースのシンボル情報は失われるが、記録自体は
+# panic_handler のログ出力に依存しており symbol strip の影響を受けない。
 panic = "abort"
 codegen-units = 1
 lto = true
+opt-level = "s"
+strip = true

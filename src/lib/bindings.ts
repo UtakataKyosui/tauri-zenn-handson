@@ -218,7 +218,9 @@ async checkForUpdate() : Promise<Result<UpdateInfo, AppError>> {
 }
 },
 /**
- * アップデートをダウンロードして適用する。呼び出し後はアプリの再起動が必要。
+ * アップデートをダウンロードして適用する。呼び出し後、アプリを再起動するまでは
+ * 新しいバイナリは使われない。再起動は `relaunch_app` を呼んだ利用者の選択に
+ * 委ねる（自動で即座に入れ替えない。Issue #18）。
  */
 async installUpdate() : Promise<Result<null, AppError>> {
     try {
@@ -227,6 +229,13 @@ async installUpdate() : Promise<Result<null, AppError>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * `install_update` の完了後、利用者が明示的に選んだタイミングでアプリを再起動する。
+ * この関数は成功時に戻らない（プロセスを終了して再起動する）。
+ */
+async relaunchApp() : Promise<void> {
+    await TAURI_INVOKE("relaunch_app");
 }
 }
 

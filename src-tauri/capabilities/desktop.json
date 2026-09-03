@@ -20,6 +20,7 @@
     "os:default",
     "window-state:default",
     "updater:default",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "process:allow-restart"
   ]
 }

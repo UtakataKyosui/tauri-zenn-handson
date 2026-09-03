@@ -111,6 +111,9 @@
       "install": "Install v{{version}}",
       "checking": "Checking...",
       "upToDate": "You're up to date",
+      "installing": "Installing...",
+      "installed": "v{{version}} is ready. Restart to apply it.",
+      "relaunch": "Restart now",
       "failed": "Check failed: {{message}}"
     }
   }

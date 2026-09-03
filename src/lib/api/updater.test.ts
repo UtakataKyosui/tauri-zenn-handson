@@ -1,6 +1,6 @@
 import { mockCommand } from "@/test/mocks/tauri";
 import { describe, expect, it } from "vitest";
-import { checkForUpdate, installUpdate } from "./updater";
+import { checkForUpdate, installUpdate, relaunchApp } from "./updater";
 
 describe("updater api", () => {
   it("reports when no update is available", async () => {
@@ -35,5 +35,11 @@ describe("updater api", () => {
     });
 
     await expect(installUpdate()).rejects.toThrow();
+  });
+
+  it("relaunches the app", async () => {
+    mockCommand("relaunch_app", () => null);
+
+    await expect(relaunchApp()).resolves.toBeUndefined();
   });
 });

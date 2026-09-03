@@ -111,6 +111,9 @@
       "install": "v{{version}} をインストール",
       "checking": "確認中...",
       "upToDate": "最新版です",
+      "installing": "インストール中...",
+      "installed": "v{{version}} の準備ができました。再起動すると反映されます。",
+      "relaunch": "今すぐ再起動",
       "failed": "確認に失敗しました: {{message}}"
     }
   }
