@@ -59,7 +59,7 @@ jobs:
       # CI-04: 証明書が無い環境でも CI が失敗しないよう、署名関連の env は
       # secrets が未設定なら空文字のまま渡す。tauri-action / bundler は
       # 空の場合は署名ステップをスキップする（R-3 対策）。
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # CI-05: アップデータ用の署名鍵（`pnpm tauri signer generate` で生成し、
